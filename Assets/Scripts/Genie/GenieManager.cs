@@ -110,12 +110,9 @@ namespace GeniesGambit.Genie
             {
                 WishType.Thorns => new List<Vector3Int>
                 {
-                    new Vector3Int(-4, 0, 0),
-                    new Vector3Int(-3, 0, 0),
-                    new Vector3Int(-2, 0, 0),
-                    new Vector3Int(-1, 0, 0),
-                    new Vector3Int(0, 0, 0),
-                    new Vector3Int(1, 0, 0)
+                    new Vector3Int(-6, -1, 0),
+                    new Vector3Int(-4, -1, 0),
+                    new Vector3Int(2, -1, 0)
                 },
                 WishType.BrokenGround => new List<Vector3Int>
                 {
@@ -131,6 +128,13 @@ namespace GeniesGambit.Genie
             };
         }
 
-        Vector3 GetWishSpawnPoint(WishType type) => Vector3.zero;
+        Vector3 GetWishSpawnPoint(WishType type)
+        {
+            return type switch
+            {
+                WishType.Wife => new Vector3(6.38f, 5f, 0f),
+                _ => Vector3.zero
+            };
+        }
     }
 }

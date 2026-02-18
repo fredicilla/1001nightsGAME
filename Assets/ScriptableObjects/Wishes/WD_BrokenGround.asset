@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72ed9a8af813c8e4cbca536ca22197df, type: 3}
   m_Name: WD_BrokenGround
   m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Genie.WishData
-  wishType: 1
+  wishType: 0
   wishNameArabic: "\u0627\u0631\u0627\u0636\u064A"
   wishNameEnglish: Broken Ground
   wishIcon: {fileID: 0}
-  genieQuote: The earth beneath you crumbles into scattered platforms!
+  genieQuote: The ground shall crumble beneath your feet...
   affectsHero: 1
   affectsMonster: 0
   spawnPrefab: {fileID: 0}

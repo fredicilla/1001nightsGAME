@@ -12,13 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72ed9a8af813c8e4cbca536ca22197df, type: 3}
   m_Name: WD_Wife
   m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Genie.WishData
-  wishType: 3
+  wishType: 2
   wishNameArabic: "\u0632\u0648\u062C\u0629"
   wishNameEnglish: The Wife
   wishIcon: {fileID: 0}
-  genieQuote: A companion appears... but she hunts you relentlessly!
-  affectsHero: 0
-  affectsMonster: 1
-  spawnPrefab: {fileID: 0}
+  genieQuote: A dark presence hunts you...
+  affectsHero: 1
+  affectsMonster: 0
+  spawnPrefab: {fileID: 8372535107294948693, guid: 69cce307f9ec34149b381189501d4355, type: 3}
   swapsTiles: 0
   replacementTile: {fileID: 0}

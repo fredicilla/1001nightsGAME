@@ -12,13 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72ed9a8af813c8e4cbca536ca22197df, type: 3}
   m_Name: WD_FallingCoins
   m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Genie.WishData
-  wishType: 5
+  wishType: 4
   wishNameArabic: "\u0627\u0644\u0645\u0627\u0644"
-  wishNameEnglish: Falling Coins
+  wishNameEnglish: The Money
   wishIcon: {fileID: 0}
-  genieQuote: Riches rain from above... but wealth can be deadly!
+  genieQuote: Greed weighs heavy on the soul...
   affectsHero: 1
   affectsMonster: 0
-  spawnPrefab: {fileID: 0}
+  spawnPrefab: {fileID: 5287530334623037481, guid: 7f8ec53907103a34fb68d165b4157840, type: 3}
   swapsTiles: 0
   replacementTile: {fileID: 0}

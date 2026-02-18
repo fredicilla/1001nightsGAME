@@ -6,6 +6,13 @@ namespace GeniesGambit.Level
     [RequireComponent(typeof(Collider2D))]
     public class FlagTrigger : MonoBehaviour
     {
+        GateController _gateController;
+
+        void Awake()
+        {
+            _gateController = GetComponent<GateController>();
+        }
+
         void OnTriggerEnter2D(Collider2D other)
         {
             if (!other.CompareTag("Player")) return;
@@ -14,6 +21,11 @@ namespace GeniesGambit.Level
             {
                 Debug.Log("[Flag] You need the key first!");
                 return;
+            }
+            
+            if (_gateController != null)
+            {
+                _gateController.OpenGate();
             }
             
             TurnManager turnManager = FindFirstObjectByType<TurnManager>();

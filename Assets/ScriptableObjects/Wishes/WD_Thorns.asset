@@ -12,13 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72ed9a8af813c8e4cbca536ca22197df, type: 3}
   m_Name: WD_Thorns
   m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Genie.WishData
-  wishType: 2
+  wishType: 1
   wishNameArabic: "\u0627\u0644\u0639\u0633\u0644"
   wishNameEnglish: Thorns
   wishIcon: {fileID: 0}
-  genieQuote: Sharp thorns sprout from the ground, a deadly carpet awaits!
+  genieQuote: Sharp thorns shall rise from the ground...
   affectsHero: 1
   affectsMonster: 0
   spawnPrefab: {fileID: 0}
   swapsTiles: 1
-  replacementTile: {fileID: 0}
+  replacementTile: {fileID: 11400000, guid: 5479d6217df2771479614694cb90d27a, type: 2}

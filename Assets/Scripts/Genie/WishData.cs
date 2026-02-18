@@ -9,7 +9,7 @@ namespace GeniesGambit.Genie
         Thorns,        // العسل      — floor becomes spike/thorn surface
         Wife,          // زوجة       — spawns extra chasing monster
         Wisdom,        // حكمة       — triggers password puzzle
-        FallingCoins   // المال      — giant coins fall, deadly on contact
+        FallingCoins   // المال      — coins slow player down when collected
     }
 
     [CreateAssetMenu(

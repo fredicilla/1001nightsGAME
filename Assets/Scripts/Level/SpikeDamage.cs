@@ -16,7 +16,19 @@ namespace GeniesGambit.Level
             if (playerController != null)
             {
                 playerController.GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
-                playerController.transform.position = new Vector3(-7, 0, 0);
+                playerController.transform.position = new Vector3(-6.123f, 2.278f, 0);
+                playerController.ApplyWeightSlowdown(0f);
+                
+                KeyCollectible.ResetKey();
+                CoinCollectible.ResetCoins();
+                
+                var coinSpawner = FindFirstObjectByType<CoinSpawner>();
+                if (coinSpawner != null)
+                    coinSpawner.ResetAllCoins();
+                
+                var ghost = FindFirstObjectByType<Enemies.ChasingMonster>();
+                if (ghost != null)
+                    ghost.RespawnGhostPublic();
             }
         }
     }

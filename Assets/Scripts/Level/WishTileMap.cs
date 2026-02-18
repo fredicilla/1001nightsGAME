@@ -18,6 +18,7 @@ namespace GeniesGambit.Level
 
         Tilemap _tilemap;
         readonly Dictionary<Vector3Int, TileBase> _snapshot = new();
+        readonly Dictionary<Vector3Int, TileBase> _groundSnapshot = new();
 
         void Awake() => _tilemap = GetComponent<Tilemap>();
 
@@ -27,9 +28,12 @@ namespace GeniesGambit.Level
             {
                 foreach (var cell in targetCells)
                 {
+                    if (!_groundSnapshot.ContainsKey(cell))
+                        _groundSnapshot[cell] = groundTilemap.GetTile(cell);
+                    
                     groundTilemap.SetTile(cell, null);
                 }
-                Debug.Log("[WishTileMap] Broke ground - created platformer gaps!");
+                Debug.Log("[WishTileMap] Broke ground into platforms - created gaps!");
                 return;
             }
 
@@ -53,6 +57,10 @@ namespace GeniesGambit.Level
             foreach (var (cell, tile) in _snapshot)
                 _tilemap.SetTile(cell, tile);
             _snapshot.Clear();
+
+            foreach (var (cell, tile) in _groundSnapshot)
+                groundTilemap.SetTile(cell, tile);
+            _groundSnapshot.Clear();
         }
     }
 }
