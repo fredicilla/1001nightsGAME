@@ -11,6 +11,8 @@ namespace GeniesGambit.Core
 
         void Update()
         {
+            // Guard against GameManager not being ready yet
+            if (GameManager.Instance == null) return;
             if (GameManager.Instance.CurrentState != GameState.HeroTurn) return;
             if (heroTurnDuration <= 0f) return;
             _timer -= Time.deltaTime;

@@ -58,16 +58,21 @@ namespace GeniesGambit.Core
         {
             Debug.Log($"[RoundManager] Round {_currentRound} complete! All 3 iterations succeeded!");
 
-            if (GenieManager.Instance != null)
+            // If no GenieManager or no wishes remaining, skip genie screen and go to next round
+            if (GenieManager.Instance == null)
             {
-                int wishesRemaining = GenieManager.Instance.GetRemainingWishCount();
-                
-                if (wishesRemaining == 0)
-                {
-                    Debug.Log("[RoundManager] No wishes remaining! Moving to next round without genie screen.");
-                    StartNewRound();
-                    return;
-                }
+                Debug.Log("[RoundManager] No GenieManager found! Moving to next round.");
+                StartNewRound();
+                return;
+            }
+
+            int wishesRemaining = GenieManager.Instance.GetRemainingWishCount();
+
+            if (wishesRemaining == 0)
+            {
+                Debug.Log("[RoundManager] No wishes remaining! Moving to next round without genie screen.");
+                StartNewRound();
+                return;
             }
 
             if (GameManager.Instance != null)
@@ -98,12 +103,12 @@ namespace GeniesGambit.Core
         public void RestartGame()
         {
             _currentRound = 0;
-            
+
             if (GenieManager.Instance != null)
             {
                 GenieManager.Instance.ResetAllWishes();
             }
-            
+
             StartNewRound();
         }
     }

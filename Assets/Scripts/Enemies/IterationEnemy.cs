@@ -26,7 +26,6 @@ namespace GeniesGambit.Enemies
                 _spriteRenderer.color = enemyColor;
             }
 
-            gameObject.tag = "Enemy";
             gameObject.name = "IterationEnemy (Player Controlled)";
         }
 

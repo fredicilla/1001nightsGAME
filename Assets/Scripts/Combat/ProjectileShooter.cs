@@ -32,6 +32,11 @@ namespace GeniesGambit.Combat
         float _replayStartTime;
         int _nextReplayIndex = 0;
 
+        // Replay delay to match GhostReplay's 3-second delay
+        const float REPLAY_DELAY = 3f;
+        float _replayDelayTimer = 0f;
+        bool _replayDelayComplete = false;
+
         public void StartRecording()
         {
             _isRecording = true;
@@ -81,6 +86,9 @@ namespace GeniesGambit.Combat
             _replayShots = new List<ShootEvent>(shots);
             _replayStartTime = Time.time;
             _nextReplayIndex = 0;
+            _replayDelayTimer = 0f;
+            _replayDelayComplete = false;
+            Debug.Log($"[ProjectileShooter] {gameObject.name} starting replay with {shots.Count} shots (3s delay)");
         }
 
         public void EnableShooting(bool enable, bool recordShots = false)
@@ -138,12 +146,25 @@ namespace GeniesGambit.Combat
             if (_nextReplayIndex >= _replayShots.Count)
                 return;
 
+            // Wait for delay to match GhostReplay movement delay
+            if (!_replayDelayComplete)
+            {
+                _replayDelayTimer += Time.deltaTime;
+                if (_replayDelayTimer >= REPLAY_DELAY)
+                {
+                    _replayDelayComplete = true;
+                    _replayStartTime = Time.time; // Reset start time after delay
+                    Debug.Log($"[ProjectileShooter] {gameObject.name} delay complete, can now replay shots");
+                }
+                return;
+            }
+
             float elapsed = Time.time - _replayStartTime;
 
             while (_nextReplayIndex < _replayShots.Count)
             {
                 ShootEvent shootEvent = _replayShots[_nextReplayIndex];
-                
+
                 if (shootEvent.timestamp <= elapsed)
                 {
                     ShootAtPosition(shootEvent.position, shootEvent.direction);
@@ -160,17 +181,34 @@ namespace GeniesGambit.Combat
         {
             if (projectilePrefab == null)
             {
-                Debug.LogWarning("[ProjectileShooter] Missing projectile prefab for replay!");
+                Debug.LogError("[ProjectileShooter] Missing projectile prefab for replay!");
                 return;
             }
 
-            GameObject projectile = Instantiate(projectilePrefab, position, Quaternion.identity);
+            if (firePoint == null)
+            {
+                Debug.LogError($"[ProjectileShooter] {gameObject.name} has NO firePoint! Using transform.position instead.");
+            }
+
+            // Use ghost's current firePoint position instead of recorded world position
+            // This ensures projectiles come from where the ghost actually IS, not where it was during recording
+            Vector3 spawnPosition = (firePoint != null) ? firePoint.position : transform.position;
+
+            Debug.Log($"[ProjectileShooter] {gameObject.name} REPLAYING shot - Spawn: {spawnPosition}, Dir: {direction}, Target: '{projectileTargetTag}'");
+
+            GameObject projectile = Instantiate(projectilePrefab, spawnPosition, Quaternion.identity);
             projectile.transform.right = direction;
 
             var projectileScript = projectile.GetComponent<Projectile>();
             if (projectileScript != null)
             {
-                projectileScript.Initialize(direction, projectileSpeed, projectileTargetTag);
+                var shooterCollider = GetComponent<Collider2D>();
+                projectileScript.Initialize(direction, projectileSpeed, projectileTargetTag, shooterCollider);
+                Debug.Log($"[ProjectileShooter] Projectile initialized with targetTag='{projectileTargetTag}', speed={projectileSpeed}");
+            }
+            else
+            {
+                Debug.LogError($"[ProjectileShooter] Projectile prefab has NO Projectile script!");
             }
         }
 
@@ -183,14 +221,15 @@ namespace GeniesGambit.Combat
             }
 
             Vector3 direction = GetFacingDirection();
-            
+
             GameObject projectile = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
             projectile.transform.right = direction;
 
             var projectileScript = projectile.GetComponent<Projectile>();
             if (projectileScript != null)
             {
-                projectileScript.Initialize(direction, projectileSpeed, projectileTargetTag);
+                var shooterCollider = GetComponent<Collider2D>();
+                projectileScript.Initialize(direction, projectileSpeed, projectileTargetTag, shooterCollider);
             }
 
             Debug.Log($"[ProjectileShooter] {gameObject.name} fired projectile in direction {direction}!");
@@ -218,7 +257,7 @@ namespace GeniesGambit.Combat
             {
                 return Vector3.left;
             }
-            
+
             return Vector3.right;
         }
 
@@ -230,6 +269,23 @@ namespace GeniesGambit.Combat
         public int GetRecordedShotCount()
         {
             return _recordedShots.Count;
+        }
+
+        /// <summary>
+        /// Set the tag that projectiles will target
+        /// </summary>
+        public void SetTargetTag(string tag)
+        {
+            projectileTargetTag = tag;
+            Debug.Log($"[ProjectileShooter] {gameObject.name} now targets: {tag}");
+        }
+
+        /// <summary>
+        /// Get the current target tag
+        /// </summary>
+        public string GetTargetTag()
+        {
+            return projectileTargetTag;
         }
     }
 }

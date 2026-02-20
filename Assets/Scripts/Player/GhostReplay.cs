@@ -29,7 +29,7 @@ namespace GeniesGambit.Player
             _delayComplete = false;
 
             Color ghostColor = _spriteRenderer.color;
-            ghostColor.a = 0.5f;
+            ghostColor.a = 1f;
             _spriteRenderer.color = ghostColor;
 
             Debug.Log($"[GhostReplay] Started playback with {_frames.Count} frames (3 second delay before movement)");
