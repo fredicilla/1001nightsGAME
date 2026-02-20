@@ -23,6 +23,7 @@ namespace GeniesGambit.Player
         Rigidbody2D    _rb;
         SpriteRenderer _sr;
         Animator       _animator;
+        MovementRecorder _recorder;
         float  _horizontal;
         bool   _jumpPressed;
         bool   _isGrounded;
@@ -36,6 +37,7 @@ namespace GeniesGambit.Player
             _rb = GetComponent<Rigidbody2D>();
             _sr = GetComponent<SpriteRenderer>();
             _animator = GetComponent<Animator>();
+            _recorder = GetComponent<MovementRecorder>();
             
             _startPosition = transform.position;
             
@@ -96,15 +98,24 @@ namespace GeniesGambit.Player
             if (transform.position.y < -10f)
             {
                 Debug.Log("[Player] Fell off the map! Respawning...");
-                RespawnAtStart();
                 
-                var coinSpawner = FindFirstObjectByType<Level.CoinSpawner>();
-                if (coinSpawner != null)
-                    coinSpawner.ResetAllCoins();
-                
-                var ghost = FindFirstObjectByType<Enemies.ChasingMonster>();
-                if (ghost != null)
-                    ghost.RespawnGhostPublic();
+                var iterationManager = FindFirstObjectByType<Core.IterationManager>();
+                if (iterationManager != null && iterationManager.CurrentIteration == 1)
+                {
+                    iterationManager.ResetIterations();
+                }
+                else
+                {
+                    RespawnAtStart();
+                    
+                    var coinSpawner = FindFirstObjectByType<Level.CoinSpawner>();
+                    if (coinSpawner != null)
+                        coinSpawner.ResetAllCoins();
+                    
+                    var ghost = FindFirstObjectByType<Enemies.ChasingMonster>();
+                    if (ghost != null)
+                        ghost.RespawnGhostPublic();
+                }
             }
         }
 

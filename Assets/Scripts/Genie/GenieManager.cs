@@ -90,7 +90,16 @@ namespace GeniesGambit.Genie
                 ApplyWish(wish);
 
             wishPanelUI.Hide();
-            GameManager.Instance.SetState(GameState.HeroTurn);
+            
+            if (RoundManager.Instance != null)
+            {
+                RoundManager.Instance.OnWishApplied();
+            }
+            else
+            {
+                Debug.LogWarning("[GenieManager] No RoundManager found! Falling back to HeroTurn.");
+                GameManager.Instance.SetState(GameState.HeroTurn);
+            }
         }
 
         void ApplyWish(WishData wish)
@@ -135,6 +144,24 @@ namespace GeniesGambit.Genie
                 WishType.Wife => new Vector3(6.38f, 5f, 0f),
                 _ => Vector3.zero
             };
+        }
+
+        public int GetRemainingWishCount()
+        {
+            int remaining = 0;
+            foreach (var wish in allWishes)
+            {
+                if (!_allChosenWishesEver.Contains(wish))
+                    remaining++;
+            }
+            return remaining;
+        }
+
+        public void ResetAllWishes()
+        {
+            _allChosenWishesEver.Clear();
+            _chosenWishesThisRound.Clear();
+            _offeredWishes.Clear();
         }
     }
 }

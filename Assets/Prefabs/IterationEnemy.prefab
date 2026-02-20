@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &2871278746081102369
+--- !u!1 &2642576964724567185
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,7 +8,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7205690522891554936}
+  - component: {fileID: 4629753126303775264}
   m_Layer: 0
   m_Name: FirePoint
   m_TagString: Untagged
@@ -16,22 +16,22 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7205690522891554936
+--- !u!4 &4629753126303775264
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2871278746081102369}
+  m_GameObject: {fileID: 2642576964724567185}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.5, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1998180134473212029}
+  m_Father: {fileID: 6115018156112422798}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &7810925721757080775
+--- !u!1 &4901999038542104239
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -39,7 +39,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 6029640731191570789}
+  - component: {fileID: 1281760248509902938}
   m_Layer: 0
   m_Name: GroundCheck
   m_TagString: Untagged
@@ -47,22 +47,22 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &6029640731191570789
+--- !u!4 &1281760248509902938
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7810925721757080775}
+  m_GameObject: {fileID: 4901999038542104239}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.5, z: 0}
+  m_LocalPosition: {x: 0, y: -3.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1998180134473212029}
+  m_Father: {fileID: 6115018156112422798}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &9061331562031457670
+--- !u!1 &7910426907510148282
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -70,46 +70,46 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1998180134473212029}
-  - component: {fileID: 2824876748227456154}
-  - component: {fileID: 4907991934785971999}
-  - component: {fileID: 89512198662279455}
-  - component: {fileID: 8497213622533551609}
-  - component: {fileID: 1072191113043596360}
-  - component: {fileID: 5181271470980395321}
-  - component: {fileID: 7446602422395619829}
-  - component: {fileID: 634025204653136447}
+  - component: {fileID: 6115018156112422798}
+  - component: {fileID: 7561163949853464438}
+  - component: {fileID: 336302242470860631}
+  - component: {fileID: 1072860978617797933}
+  - component: {fileID: 7049462019174274329}
+  - component: {fileID: 8829802436187209914}
+  - component: {fileID: 3167869123200363097}
+  - component: {fileID: 3372804298475047193}
+  - component: {fileID: 3595945334116289309}
   m_Layer: 11
-  m_Name: Hero
-  m_TagString: Player
+  m_Name: IterationEnemy
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1998180134473212029
+--- !u!4 &6115018156112422798
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9061331562031457670}
+  m_GameObject: {fileID: 7910426907510148282}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -7, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.1, y: 0.1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 6029640731191570789}
-  - {fileID: 7205690522891554936}
+  - {fileID: 1281760248509902938}
+  - {fileID: 4629753126303775264}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!212 &2824876748227456154
+--- !u!212 &7561163949853464438
 SpriteRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9061331562031457670}
+  m_GameObject: {fileID: 7910426907510148282}
   m_Enabled: 1
   m_CastShadows: 0
   m_ReceiveShadows: 0
@@ -149,26 +149,26 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 602982183
   m_SortingLayer: 5
-  m_SortingOrder: 0
+  m_SortingOrder: 1
   m_Sprite: {fileID: 21300000, guid: eaf96fa88a31c3c4daaab2809cf514eb, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 1, g: 0.3, b: 0.3, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 1, y: 2}
+  m_Size: {x: 10, y: 10}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!50 &4907991934785971999
+--- !u!50 &336302242470860631
 Rigidbody2D:
   serializedVersion: 5
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9061331562031457670}
+  m_GameObject: {fileID: 7910426907510148282}
   m_BodyType: 0
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
@@ -176,7 +176,7 @@ Rigidbody2D:
   m_Mass: 1
   m_LinearDamping: 0
   m_AngularDamping: 0.05
-  m_GravityScale: 3.5
+  m_GravityScale: 3
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -188,13 +188,13 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 1
   m_Constraints: 4
---- !u!70 &89512198662279455
+--- !u!70 &1072860978617797933
 CapsuleCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9061331562031457670}
+  m_GameObject: {fileID: 7910426907510148282}
   m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
@@ -225,13 +225,76 @@ CapsuleCollider2D:
   m_Offset: {x: 0, y: 0}
   m_Size: {x: 4, y: 9}
   m_Direction: 0
---- !u!114 &8497213622533551609
+--- !u!114 &7049462019174274329
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9061331562031457670}
+  m_GameObject: {fileID: 7910426907510148282}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61072fb3d84ff13459532daf88682408, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Enemies.IterationEnemy
+  enemyColor: {r: 1, g: 0.3, b: 0.3, a: 1}
+--- !u!114 &8829802436187209914
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7910426907510148282}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fee75aa00939f574ab546210cb0216ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Player.PlayerController
+  moveSpeed: 5
+  jumpForce: 12
+  coyoteTime: 0.2
+  groundCheck: {fileID: 1281760248509902938}
+  groundRadius: 0.2
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 384
+--- !u!114 &3167869123200363097
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7910426907510148282}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e814b39d77f2844ebc015a15f5ae5b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Combat.Health
+  maxHealth: 1
+--- !u!114 &3372804298475047193
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7910426907510148282}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e615ac183b7a72f448e1eeb4c9689eac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Combat.ProjectileShooter
+  projectilePrefab: {fileID: 6120195456284379099, guid: 144dcb43dab0b7c4a8798c36a73f1c07, type: 3}
+  firePoint: {fileID: 4629753126303775264}
+  projectileSpeed: 10
+  fireRate: 0.5
+  projectileTargetTag: Player
+--- !u!114 &3595945334116289309
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7910426907510148282}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
@@ -255,75 +318,3 @@ MonoBehaviour:
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
---- !u!114 &1072191113043596360
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9061331562031457670}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fee75aa00939f574ab546210cb0216ca, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Player.PlayerController
-  moveSpeed: 5
-  jumpForce: 12
-  coyoteTime: 0.2
-  groundCheck: {fileID: 6029640731191570789}
-  groundRadius: 0.2
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 384
---- !u!95 &5181271470980395321
-Animator:
-  serializedVersion: 7
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9061331562031457670}
-  m_Enabled: 1
-  m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: b4df21f065c5a29459a7b23cf7c8d7b3, type: 2}
-  m_CullingMode: 0
-  m_UpdateMode: 0
-  m_ApplyRootMotion: 0
-  m_LinearVelocityBlending: 0
-  m_StabilizeFeet: 0
-  m_AnimatePhysics: 0
-  m_WarningMessage: 
-  m_HasTransformHierarchy: 1
-  m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorStateOnDisable: 0
-  m_WriteDefaultValuesOnDisable: 0
---- !u!114 &7446602422395619829
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9061331562031457670}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4e814b39d77f2844ebc015a15f5ae5b0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Combat.Health
-  maxHealth: 1
---- !u!114 &634025204653136447
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9061331562031457670}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e615ac183b7a72f448e1eeb4c9689eac, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Combat.ProjectileShooter
-  projectilePrefab: {fileID: 6120195456284379099, guid: 144dcb43dab0b7c4a8798c36a73f1c07, type: 3}
-  firePoint: {fileID: 7205690522891554936}
-  projectileSpeed: 10
-  fireRate: 0.5
-  projectileTargetTag: Enemy
