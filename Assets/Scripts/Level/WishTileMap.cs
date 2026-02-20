@@ -22,31 +22,33 @@ namespace GeniesGambit.Level
 
         void Awake() => _tilemap = GetComponent<Tilemap>();
 
-        public void ApplyWish(WishType wishType, IEnumerable<Vector3Int> targetCells)
+        public void ApplyWish(WishType wishType, IEnumerable<Vector3> worldPositions)
         {
             if (wishType == WishType.BrokenGround && groundTilemap != null)
             {
-                foreach (var cell in targetCells)
+                foreach (var worldPos in worldPositions)
                 {
+                    Vector3Int cell = groundTilemap.WorldToCell(worldPos);
                     if (!_groundSnapshot.ContainsKey(cell))
                         _groundSnapshot[cell] = groundTilemap.GetTile(cell);
-                    
+
                     groundTilemap.SetTile(cell, null);
                 }
                 Debug.Log("[WishTileMap] Broke ground into platforms - created gaps!");
                 return;
             }
 
-            foreach (var cell in targetCells)
+            foreach (var worldPos in worldPositions)
             {
+                Vector3Int cell = _tilemap.WorldToCell(worldPos);
                 if (!_snapshot.ContainsKey(cell))
                     _snapshot[cell] = _tilemap.GetTile(cell);
 
                 TileBase newTile = wishType switch
                 {
-                    WishType.Thorns       => thornTile,
+                    WishType.Thorns => thornTile,
                     WishType.FallingCoins => coinTile,
-                    _                     => null
+                    _ => null
                 };
                 _tilemap.SetTile(cell, newTile);
             }

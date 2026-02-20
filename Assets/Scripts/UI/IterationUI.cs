@@ -21,10 +21,10 @@ namespace GeniesGambit.UI
             }
 
             int iteration = IterationManager.Instance.CurrentIteration;
-            
+
             if (iterationText != null)
             {
-                iterationText.text = $"Iteration: {iteration}/2";
+                iterationText.text = $"Iteration: {iteration}/3";
             }
 
             if (roleText != null)

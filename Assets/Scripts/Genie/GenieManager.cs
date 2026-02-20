@@ -14,14 +14,14 @@ namespace GeniesGambit.Genie
 
         [Header("Rules")]
         [SerializeField] int wishesPerRound = 3;
-        [SerializeField] int wishPickCount  = 1;
+        [SerializeField] int wishPickCount = 1;
 
         [Header("Scene References")]
         [SerializeField] WishTileMap wishTileMap;
-        [SerializeField] WishPanel   wishPanelUI;
+        [SerializeField] WishPanel wishPanelUI;
 
         readonly List<WishData> _offeredWishes = new();
-        readonly List<WishData> _chosenWishesThisRound  = new();
+        readonly List<WishData> _chosenWishesThisRound = new();
         readonly List<WishData> _allChosenWishesEver = new();
 
         void Awake()
@@ -30,7 +30,7 @@ namespace GeniesGambit.Genie
             Instance = this;
         }
 
-        void OnEnable()  => GameManager.OnStateChanged += HandleStateChange;
+        void OnEnable() => GameManager.OnStateChanged += HandleStateChange;
         void OnDisable() => GameManager.OnStateChanged -= HandleStateChange;
 
         void HandleStateChange(GameState old, GameState newState)
@@ -90,7 +90,7 @@ namespace GeniesGambit.Genie
                 ApplyWish(wish);
 
             wishPanelUI.Hide();
-            
+
             if (RoundManager.Instance != null)
             {
                 RoundManager.Instance.OnWishApplied();
@@ -113,27 +113,27 @@ namespace GeniesGambit.Genie
                 Instantiate(wish.spawnPrefab, GetWishSpawnPoint(wish.wishType), Quaternion.identity);
         }
 
-        List<Vector3Int> GetWishCells(WishType type)
+        List<Vector3> GetWishCells(WishType type)
         {
             return type switch
             {
-                WishType.Thorns => new List<Vector3Int>
+                WishType.Thorns => new List<Vector3>
                 {
-                    new Vector3Int(-6, -1, 0),
-                    new Vector3Int(-4, -1, 0),
-                    new Vector3Int(2, -1, 0)
+                    new Vector3(-6, 0.68f, 0),
+                    new Vector3(-4, 0.68f, 0),
+                    new Vector3(2, 0.68f, 0)
                 },
-                WishType.BrokenGround => new List<Vector3Int>
+                WishType.BrokenGround => new List<Vector3>
                 {
-                    new Vector3Int(-5, -1, 0),
-                    new Vector3Int(-4, -1, 0),
-                    new Vector3Int(-3, -1, 0),
-                    new Vector3Int(-1, -1, 0),
-                    new Vector3Int(0, -1, 0),
-                    new Vector3Int(2, -1, 0),
-                    new Vector3Int(3, -1, 0)
+                    new Vector3(-5, -1, 0),
+                    new Vector3(-4, -1, 0),
+                    new Vector3(-3, -1, 0),
+                    new Vector3(-1, -1, 0),
+                    new Vector3(0, -1, 0),
+                    new Vector3(2, -1, 0),
+                    new Vector3(3, -1, 0)
                 },
-                _ => new List<Vector3Int>()
+                _ => new List<Vector3>()
             };
         }
 

@@ -98,6 +98,7 @@ namespace GeniesGambit.Core
             }
 
             _liveHero.SetActive(true);
+            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
 
             // Reset hero position to spawn point for new round
             if (heroSpawnPoint != null)
@@ -208,6 +209,7 @@ namespace GeniesGambit.Core
             _ghostHero = Instantiate(heroPrefab, heroSpawnPoint.position, Quaternion.identity);
             _ghostHero.name = "GhostHero (Iteration 1 Replay)";
             _ghostHero.tag = "Player"; // Must have Player tag so enemy projectiles can hit it
+            _ghostHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
 
             // Disable components immediately to prevent input conflicts, then Destroy
             var ghostPlayerController = _ghostHero.GetComponent<PlayerController>();
@@ -285,6 +287,7 @@ namespace GeniesGambit.Core
                 _liveEnemy = Instantiate(enemyPrefab, enemySpawnPoint.position, Quaternion.identity);
                 _liveEnemy.name = "LiveEnemy (Player Controlled)";
                 _liveEnemy.tag = "Enemy"; // Must have Enemy tag so ghost hero projectiles can hit it
+                _liveEnemy.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
                 Debug.Log($"[IterationManager] Enemy spawned at {enemySpawnPoint.position}");
 
                 // Ensure enemy has a Health component so ghost projectiles can damage it
@@ -480,6 +483,7 @@ namespace GeniesGambit.Core
 
             // NOW activate hero
             _liveHero.SetActive(true);
+            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
 
             if (heroSpawnPoint != null)
             {
@@ -561,6 +565,7 @@ namespace GeniesGambit.Core
                 _ghostEnemy = _liveEnemy;
                 _ghostEnemy.name = "GhostEnemy (Iteration 2 Replay)";
                 _ghostEnemy.tag = "Enemy"; // Must have Enemy tag so hero projectiles can hit it
+                _ghostEnemy.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
 
                 // Finish destroying the input components (already disabled above)
                 var enemyPlayerInput = _ghostEnemy.GetComponent<UnityEngine.InputSystem.PlayerInput>();
@@ -659,6 +664,7 @@ namespace GeniesGambit.Core
 
             // IMPORTANT: Reactivate hero (was deactivated when they died)
             _liveHero.SetActive(true);
+            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
 
             // Reset hero position and physics state
             if (heroSpawnPoint != null)
@@ -731,6 +737,7 @@ namespace GeniesGambit.Core
                 _ghostEnemy = Instantiate(enemyPrefab, enemySpawnPoint.position, Quaternion.identity);
                 _ghostEnemy.name = "GhostEnemy (Iteration 2 Replay)";
                 _ghostEnemy.tag = "Enemy";
+                _ghostEnemy.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
 
                 // Remove player control components
                 var enemyPlayerInput = _ghostEnemy.GetComponent<UnityEngine.InputSystem.PlayerInput>();
@@ -882,6 +889,7 @@ namespace GeniesGambit.Core
 
             // Hero needs to be re-enabled (it was deactivated when it died)
             _liveHero.SetActive(true);
+            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
 
             // Start Iteration 3 fresh with the same Iteration 2 recording
             StartIteration3FromRestart();
@@ -894,6 +902,7 @@ namespace GeniesGambit.Core
             CleanupGhosts();
 
             _liveHero.SetActive(true);
+            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
 
             if (heroSpawnPoint != null)
             {
