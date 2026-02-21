@@ -151,7 +151,7 @@ SpriteRenderer:
   m_SortingLayerID: 602982183
   m_SortingLayer: 5
   m_SortingOrder: 1
-  m_Sprite: {fileID: 7865804312630005920, guid: a7312111f08acf3418ce6b0a5bae6fbf, type: 3}
+  m_Sprite: {fileID: 21300000, guid: a7312111f08acf3418ce6b0a5bae6fbf, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -290,6 +290,7 @@ MonoBehaviour:
   projectileSpeed: 10
   fireRate: 0.5
   projectileTargetTag: Player
+  invertShootingDirection: 1
 --- !u!114 &3595945334116289309
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -330,7 +331,7 @@ Animator:
   m_GameObject: {fileID: 7910426907510148282}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: b4df21f065c5a29459a7b23cf7c8d7b3, type: 2}
+  m_Controller: {fileID: 9100000, guid: c11d09408b300cf44b9d33771cc6d6cf, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0

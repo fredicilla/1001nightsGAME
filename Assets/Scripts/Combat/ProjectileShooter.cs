@@ -20,6 +20,7 @@ namespace GeniesGambit.Combat
         [SerializeField] float projectileSpeed = 10f;
         [SerializeField] float fireRate = 0.5f;
         [SerializeField] string projectileTargetTag = "Player";
+        [SerializeField] bool invertShootingDirection = false;
 
         InputAction _shootAction;
         float _nextFireTime;
@@ -250,7 +251,14 @@ namespace GeniesGambit.Combat
             var spriteRenderer = GetComponent<SpriteRenderer>();
             if (spriteRenderer != null)
             {
-                return spriteRenderer.flipX ? Vector3.left : Vector3.right;
+                if (invertShootingDirection)
+                {
+                    return spriteRenderer.flipX ? Vector3.right : Vector3.left;
+                }
+                else
+                {
+                    return spriteRenderer.flipX ? Vector3.left : Vector3.right;
+                }
             }
 
             if (transform.localScale.x < 0)
