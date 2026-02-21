@@ -79,6 +79,7 @@ GameObject:
   - component: {fileID: 3167869123200363097}
   - component: {fileID: 3372804298475047193}
   - component: {fileID: 3595945334116289309}
+  - component: {fileID: -2132865344719839269}
   m_Layer: 11
   m_Name: IterationEnemy
   m_TagString: Enemy
@@ -258,6 +259,7 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 384
+  invertFlip: 1
 --- !u!114 &3167869123200363097
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -318,3 +320,25 @@ MonoBehaviour:
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
+--- !u!95 &-2132865344719839269
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7910426907510148282}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: b4df21f065c5a29459a7b23cf7c8d7b3, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0

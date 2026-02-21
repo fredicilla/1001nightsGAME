@@ -31,7 +31,7 @@ namespace GeniesGambit.Combat
         {
             // Periodic debug check to see if there's a target nearby
             _debugTimer += Time.deltaTime;
-            if (_debugTimer >= 0.5f && !string.IsNullOrEmpty(_targetTag))
+            if (_debugTimer >= 0.8f && !string.IsNullOrEmpty(_targetTag))
             {
                 _debugTimer = 0f;
                 var target = GameObject.FindWithTag(_targetTag);
@@ -82,7 +82,7 @@ namespace GeniesGambit.Combat
             }
 
             // Also check overlap at current position as fallback
-            Collider2D[] overlaps = Physics2D.OverlapCircleAll(transform.position, 0.5f, allLayers);
+            Collider2D[] overlaps = Physics2D.OverlapCircleAll(transform.position, 0.8f, allLayers);
             foreach (var hit in overlaps)
             {
                 if (hit != _collider && hit.CompareTag(_targetTag))

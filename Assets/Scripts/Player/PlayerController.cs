@@ -18,6 +18,9 @@ namespace GeniesGambit.Player
         [SerializeField] float groundRadius = 0.12f;
         [SerializeField] LayerMask groundLayer;
 
+        [Header("Sprite")]
+        [SerializeField] bool invertFlip = false; // Set true for enemy (sprite faces left by default)
+
         InputAction _moveAction;
         InputAction _jumpAction;
         Rigidbody2D _rb;
@@ -87,8 +90,19 @@ namespace GeniesGambit.Player
             if (_isGrounded) _coyoteCounter = coyoteTime;
             else _coyoteCounter -= Time.deltaTime;
 
-            if (_horizontal > 0.01f) _sr.flipX = false;
-            if (_horizontal < -0.01f) _sr.flipX = true;
+            // Flip sprite based on movement direction
+            if (invertFlip)
+            {
+                // Inverted: sprite faces left by default
+                if (_horizontal > 0.01f) _sr.flipX = true;
+                if (_horizontal < -0.01f) _sr.flipX = false;
+            }
+            else
+            {
+                // Normal: sprite faces right by default
+                if (_horizontal > 0.01f) _sr.flipX = false;
+                if (_horizontal < -0.01f) _sr.flipX = true;
+            }
 
             if (_animator != null)
             {
@@ -201,7 +215,7 @@ namespace GeniesGambit.Player
         {
             transform.position = _startPosition;
             _rb.linearVelocity = Vector2.zero;
-            _horizontal = 0;
+            _horizontal = -1;
             _jumpPressed = false;
             _weightSlowdown = 0f;
             KeyCollectible.ResetKey();

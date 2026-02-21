@@ -120,7 +120,7 @@ namespace GeniesGambit.Enemies
         bool IsGameActive()
         {
             if (GameManager.Instance == null) return true;
-            
+
             var state = GameManager.Instance.CurrentState;
             return state == GameState.HeroTurn || state == GameState.MonsterTurn;
         }
@@ -128,24 +128,24 @@ namespace GeniesGambit.Enemies
         void CatchPlayer()
         {
             Debug.Log("[Monster] Caught the player! Respawning both...");
-            
+
             var playerRb = player.GetComponent<Rigidbody2D>();
             if (playerRb != null)
                 playerRb.linearVelocity = Vector2.zero;
-            
-            player.position = new Vector3(-6.123f, 2.278f, 0);
-            
+
+            player.position = new Vector3(-7.5f, 2.278f, 0);
+
             var playerController = player.GetComponent<Player.PlayerController>();
             if (playerController != null)
                 playerController.ApplyWeightSlowdown(0f);
-            
+
             Level.KeyCollectible.ResetKey();
             Level.CoinCollectible.ResetCoins();
-            
+
             var coinSpawner = FindFirstObjectByType<Level.CoinSpawner>();
             if (coinSpawner != null)
                 coinSpawner.ResetAllCoins();
-            
+
             RespawnGhost();
         }
 

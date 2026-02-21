@@ -553,7 +553,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Iteration: 1/2'
+  m_text: 'Iteration: 1/3'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -1408,6 +1408,23 @@ Transform:
   - {fileID: 1517811296}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1111576304 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 9061331562031457670, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
+  m_PrefabInstance: {fileID: 5662420633183410188}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1111576314
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1111576304}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e3f2b8fa03ac18e41b5bf215f333eacc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Player.MovementRecorder
 --- !u!1 &1169018803
 GameObject:
   m_ObjectHideFlags: 0
@@ -2133,8 +2150,8 @@ TilemapRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: -521857143
-  m_SortingLayer: 4
+  m_SortingLayerID: 377340757
+  m_SortingLayer: 1
   m_SortingOrder: 5
   m_ChunkSize: {x: 32, y: 32, z: 32}
   m_ChunkCullingBounds: {x: 0, y: 0, z: 0}
@@ -2258,7 +2275,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1795162784}
   - component: {fileID: 1795162786}
-  - component: {fileID: 1795162785}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -2281,19 +2297,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1795162785
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1795162783}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 957dc22bdd9c74649888d9485ccaaae3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Core.TurnManager
-  heroTurnDuration: 0
 --- !u!114 &1795162786
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2384,7 +2387,7 @@ Transform:
   m_GameObject: {fileID: 1922946489}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -6.123, y: 2.278, z: 0}
+  m_LocalPosition: {x: -7.123, y: 2.278, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2569,7 +2572,7 @@ SpriteRenderer:
   m_SortingLayer: 6
   m_SortingOrder: 5
   m_Sprite: {fileID: 21300000, guid: 6955bce28a500c441891c189252bd3a2, type: 3}
-  m_Color: {r: 1, g: 0.96062076, b: 0, a: 0.9098039}
+  m_Color: {r: 1, g: 0.92156863, b: 0, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -2776,7 +2779,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1998180134473212029, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -6.123
+      value: -7.5
       objectReference: {fileID: 0}
     - target: {fileID: 1998180134473212029, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
       propertyPath: m_LocalPosition.y
@@ -2833,7 +2836,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 9061331562031457670, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1111576314}
   m_SourcePrefab: {fileID: 100100000, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
