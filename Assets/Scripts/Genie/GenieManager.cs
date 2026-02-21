@@ -148,6 +148,7 @@ namespace GeniesGambit.Genie
             return type switch
             {
                 WishType.Wife => new Vector3(6.38f, 5f, 0f),
+                WishType.Wisdom => Vector3.zero,
                 _ => Vector3.zero
             };
         }
