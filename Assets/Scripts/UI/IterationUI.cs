@@ -19,6 +19,7 @@ namespace GeniesGambit.UI
 
         int _lastIteration = 0;
         CanvasGroup _bannerCanvasGroup;
+        bool _isRewindBanner = false;
 
         void Start()
         {
@@ -142,6 +143,18 @@ namespace GeniesGambit.UI
                 _ => ""
             };
 
+            _isRewindBanner = false;
+            transitionText.text = message;
+            StopAllCoroutines();
+            StartCoroutine(ShowBannerCoroutine());
+        }
+
+        public void ShowRewindBanner(int targetIteration)
+        {
+            if (transitionBanner == null || transitionText == null) return;
+
+            string message = $"REWINDING TO ITERATION {targetIteration}...";
+            _isRewindBanner = true;
             transitionText.text = message;
             StopAllCoroutines();
             StartCoroutine(ShowBannerCoroutine());
@@ -151,6 +164,19 @@ namespace GeniesGambit.UI
         {
             transitionBanner.SetActive(true);
             _bannerCanvasGroup.alpha = 0f;
+
+            var bgImage = transitionBanner.GetComponent<Image>();
+            if (bgImage != null)
+            {
+                if (_isRewindBanner)
+                {
+                    bgImage.color = new Color(0f, 0.3f, 0.5f, 0.8f);
+                }
+                else
+                {
+                    bgImage.color = new Color(0, 0, 0, 0.8f);
+                }
+            }
 
             // Fade in
             while (_bannerCanvasGroup.alpha < 1f)

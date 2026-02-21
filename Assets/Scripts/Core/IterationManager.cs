@@ -37,7 +37,11 @@ namespace GeniesGambit.Core
         bool _heroReachedFlagInIteration1 = false;
         bool _enemyKilledGhostInIteration2 = false;
 
+        List<IterationState> _iterationSnapshots = new List<IterationState>();
+
         public int CurrentIteration => _currentIteration;
+
+        public bool CanRewind => _currentIteration > 1;
 
         void Awake()
         {
@@ -65,8 +69,122 @@ namespace GeniesGambit.Core
             _iteration1HeroShooterRecording = null;
             _iteration2EnemyRecording = null;
             _iteration2EnemyShooterRecording = null;
+            ClearIterationHistory();
 
             StartIteration1();
+        }
+
+        void ClearIterationHistory()
+        {
+            _iterationSnapshots.Clear();
+            Debug.Log("[IterationManager] Iteration history cleared");
+        }
+
+        void SaveIterationSnapshot()
+        {
+            Vector3 heroPos = _liveHero != null ? _liveHero.transform.position : Vector3.zero;
+            Vector3 enemyPos = _liveEnemy != null ? _liveEnemy.transform.position : Vector3.zero;
+
+            var snapshot = new IterationState(
+                _currentIteration,
+                heroPos,
+                enemyPos,
+                _iteration1HeroRecording,
+                _iteration1HeroShooterRecording,
+                _iteration2EnemyRecording,
+                _iteration2EnemyShooterRecording,
+                _heroReachedFlagInIteration1,
+                _enemyKilledGhostInIteration2
+            );
+
+            _iterationSnapshots.Add(snapshot);
+            Debug.Log($"[IterationManager] Saved snapshot for Iteration {_currentIteration}. Total snapshots: {_iterationSnapshots.Count}");
+        }
+
+        public void RestartCurrentIteration()
+        {
+            Debug.Log($"[IterationManager] === RESTARTING ITERATION {_currentIteration} ===");
+
+            if (_iterationTimer != null)
+            {
+                _iterationTimer.StopTimer();
+            }
+
+            switch (_currentIteration)
+            {
+                case 1:
+                    StartIteration1();
+                    break;
+                case 2:
+                    RestartIteration2();
+                    break;
+                case 3:
+                    RestartIteration3();
+                    break;
+                default:
+                    Debug.LogWarning($"[IterationManager] Cannot restart Iteration {_currentIteration}");
+                    break;
+            }
+        }
+
+        public void RewindToIteration(int targetIteration)
+        {
+            if (targetIteration >= _currentIteration)
+            {
+                Debug.LogWarning($"[IterationManager] Cannot rewind to Iteration {targetIteration} from Iteration {_currentIteration}");
+                return;
+            }
+
+            if (targetIteration < 1 || targetIteration > 3)
+            {
+                Debug.LogError($"[IterationManager] Invalid target iteration: {targetIteration}");
+                return;
+            }
+
+            Debug.Log($"[IterationManager] === REWINDING FROM ITERATION {_currentIteration} TO ITERATION {targetIteration} ===");
+
+            var iterationUI = FindFirstObjectByType<GeniesGambit.UI.IterationUI>();
+            if (iterationUI != null)
+            {
+                iterationUI.ShowRewindBanner(targetIteration);
+            }
+
+            if (_iterationTimer != null)
+            {
+                _iterationTimer.StopTimer();
+            }
+
+            CleanupGhosts();
+
+            if (_liveEnemy != null)
+            {
+                _liveEnemy.SetActive(false);
+                Destroy(_liveEnemy);
+                _liveEnemy = null;
+            }
+
+            while (_iterationSnapshots.Count > targetIteration - 1)
+            {
+                _iterationSnapshots.RemoveAt(_iterationSnapshots.Count - 1);
+            }
+
+            if (targetIteration == 1)
+            {
+                _iteration1HeroRecording = null;
+                _iteration1HeroShooterRecording = null;
+                _iteration2EnemyRecording = null;
+                _iteration2EnemyShooterRecording = null;
+                _heroReachedFlagInIteration1 = false;
+                _enemyKilledGhostInIteration2 = false;
+                StartIteration1();
+            }
+            else if (targetIteration == 2)
+            {
+                _iteration2EnemyRecording = null;
+                _iteration2EnemyShooterRecording = null;
+                _enemyKilledGhostInIteration2 = false;
+                StartIteration2();
+            }
         }
 
         void StartIteration1()
@@ -119,6 +237,9 @@ namespace GeniesGambit.Core
             if (heroHealth != null)
             {
                 heroHealth.ResetHealth();
+                // Subscribe to death in Iteration 1 to restart recording
+                heroHealth.OnDeath -= OnHeroDiedInIteration1;
+                heroHealth.OnDeath += OnHeroDiedInIteration1;
             }
 
             // Reset collectibles for new round
@@ -203,7 +324,75 @@ namespace GeniesGambit.Core
                 Debug.Log($"[IterationManager] Stored hero shot recording: {_iteration1HeroShooterRecording.Count} shots");
             }
 
+            SaveIterationSnapshot();
             StartIteration2();
+        }
+
+        void OnHeroDiedInIteration1()
+        {
+            if (_currentIteration != 1) return;
+
+            Debug.Log("[IterationManager] Hero died in Iteration 1! Clearing recording and restarting...");
+            
+            // Stop current recording
+            if (_heroRecorder != null)
+            {
+                _heroRecorder.StopRecording();
+            }
+            if (_heroShooter != null)
+            {
+                _heroShooter.StopRecording();
+            }
+
+            // Wait a frame then restart recording fresh
+            Invoke(nameof(RestartRecordingAfterDeath), 0.1f);
+        }
+
+        void RestartRecordingAfterDeath()
+        {
+            // Reactivate hero (it was deactivated by Health.Die())
+            if (_liveHero != null)
+            {
+                _liveHero.SetActive(true);
+            }
+
+            // Reset hero to spawn point
+            if (_liveHero != null && heroSpawnPoint != null)
+            {
+                _liveHero.transform.position = heroSpawnPoint.position;
+            }
+
+            // Reset hero velocity
+            var heroRb = _liveHero.GetComponent<Rigidbody2D>();
+            if (heroRb != null)
+            {
+                heroRb.linearVelocity = Vector2.zero;
+            }
+
+            // Reset health
+            var heroHealth = _liveHero.GetComponent<Health>();
+            if (heroHealth != null)
+            {
+                heroHealth.ResetHealth();
+            }
+
+            // Restart recording from scratch
+            if (_heroRecorder != null)
+            {
+                _heroRecorder.StartRecording();
+            }
+            if (_heroShooter != null)
+            {
+                _heroShooter.StartRecording();
+            }
+
+            // Restart timer
+            if (_iterationTimer != null)
+            {
+                _iterationTimer.StartTimer();
+            }
+
+            Debug.Log("[IterationManager] Recording restarted fresh after death");
         }
 
         void StartIteration2()
@@ -220,6 +409,13 @@ namespace GeniesGambit.Core
                 return;
             }
             Debug.Log($"[IterationManager] Hero recording valid: {_iteration1HeroRecording.Count} frames, {_iteration1HeroShooterRecording?.Count ?? 0} shots");
+
+            // Unsubscribe death handler from Iteration 1
+            var liveHeroHealth = _liveHero.GetComponent<Health>();
+            if (liveHeroHealth != null)
+            {
+                liveHeroHealth.OnDeath -= OnHeroDiedInIteration1;
+            }
 
             _liveHero.SetActive(false);
             Debug.Log("[IterationManager] Hero deactivated");
@@ -424,6 +620,7 @@ namespace GeniesGambit.Core
                 }
             }
 
+            SaveIterationSnapshot();
             StartIteration3();
         }
 
@@ -833,6 +1030,11 @@ namespace GeniesGambit.Core
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.SetState(GameState.HeroTurn);
+            }
+
+            if (_iterationTimer != null)
+            {
+                _iterationTimer.StartTimer();
             }
         }
 
