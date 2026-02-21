@@ -18,6 +18,8 @@ namespace GeniesGambit.Core
         [SerializeField] Transform heroSpawnPoint;
         [SerializeField] Transform enemySpawnPoint;
 
+        IterationTimer _iterationTimer;
+
         GameObject _liveHero;
         GameObject _liveEnemy;
         GameObject _ghostHero;
@@ -45,6 +47,12 @@ namespace GeniesGambit.Core
                 return;
             }
             Instance = this;
+
+            _iterationTimer = GetComponent<IterationTimer>();
+            if (_iterationTimer != null)
+            {
+                _iterationTimer.OnTimerExpired.AddListener(OnIterationTimerExpired);
+            }
         }
 
         public void BeginIterationCycle()
@@ -162,6 +170,11 @@ namespace GeniesGambit.Core
             {
                 GameManager.Instance.SetState(GameState.HeroTurn);
             }
+
+            if (_iterationTimer != null)
+            {
+                _iterationTimer.StartTimer();
+            }
         }
 
         public void OnHeroReachedFlag()
@@ -174,6 +187,11 @@ namespace GeniesGambit.Core
 
             Debug.Log("[IterationManager] Hero reached flag in Iteration 1! Recording complete.");
             _heroReachedFlagInIteration1 = true;
+
+            if (_iterationTimer != null)
+            {
+                _iterationTimer.StopTimer();
+            }
 
             _heroRecorder.StopRecording();
             _iteration1HeroRecording = _heroRecorder.GetRecording();
@@ -365,6 +383,11 @@ namespace GeniesGambit.Core
             {
                 GameManager.Instance.SetState(GameState.MonsterTurn);
             }
+
+            if (_iterationTimer != null)
+            {
+                _iterationTimer.StartTimer();
+            }
         }
 
         void OnGhostHeroDied()
@@ -376,6 +399,11 @@ namespace GeniesGambit.Core
 
             Debug.Log("[IterationManager] Ghost hero died in Iteration 2!");
             _enemyKilledGhostInIteration2 = true;
+
+            if (_iterationTimer != null)
+            {
+                _iterationTimer.StopTimer();
+            }
 
             if (_liveEnemy != null)
             {
@@ -633,6 +661,11 @@ namespace GeniesGambit.Core
             {
                 GameManager.Instance.SetState(GameState.HeroTurn);
             }
+
+            if (_iterationTimer != null)
+            {
+                _iterationTimer.StartTimer();
+            }
         }
 
         void OnHeroDiedInIteration3()
@@ -813,6 +846,11 @@ namespace GeniesGambit.Core
 
             Debug.Log("[IterationManager] 🎉 ITERATION CYCLE COMPLETE! Hero reached flag in Iteration 3!");
 
+            if (_iterationTimer != null)
+            {
+                _iterationTimer.StopTimer();
+            }
+
             if (RoundManager.Instance != null)
             {
                 RoundManager.Instance.OnIterationCycleComplete();
@@ -963,6 +1001,27 @@ namespace GeniesGambit.Core
             _iteration1HeroShooterRecording?.Clear();
             _iteration2EnemyRecording?.Clear();
             _iteration2EnemyShooterRecording?.Clear();
+        }
+
+        void OnIterationTimerExpired()
+        {
+            Debug.Log($"[IterationTimer] Timer expired in Iteration {_currentIteration}!");
+
+            switch (_currentIteration)
+            {
+                case 1:
+                    Debug.Log("[IterationTimer] Iteration 1 failed - Time's up! Hero didn't reach the flag in time.");
+                    ResetIterations();
+                    break;
+                case 2:
+                    Debug.Log("[IterationTimer] Iteration 2 failed - Time's up! Enemy didn't stop the ghost in time.");
+                    RestartIteration2();
+                    break;
+                case 3:
+                    Debug.Log("[IterationTimer] Iteration 3 failed - Time's up! Hero didn't reach the flag in time.");
+                    RestartIteration3();
+                    break;
+            }
         }
     }
 }
