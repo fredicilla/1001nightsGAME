@@ -12,6 +12,11 @@ namespace GeniesGambit.Level
         {
             _instance = this;
             _startPosition = transform.position;
+            
+            if (!KeyMechanicManager.IsKeyMechanicActive)
+            {
+                gameObject.SetActive(false);
+            }
         }
 
         void OnTriggerEnter2D(Collider2D other)
@@ -29,7 +34,15 @@ namespace GeniesGambit.Level
             if (_instance != null)
             {
                 _instance.transform.position = _instance._startPosition;
-                _instance.gameObject.SetActive(true);
+                
+                if (KeyMechanicManager.IsKeyMechanicActive)
+                {
+                    _instance.gameObject.SetActive(true);
+                }
+                else
+                {
+                    _instance.gameObject.SetActive(false);
+                }
             }
         }
     }

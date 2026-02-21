@@ -1,5 +1,6 @@
 using UnityEngine;
 using GeniesGambit.Genie;
+using GeniesGambit.Level;
 
 namespace GeniesGambit.Core
 {
@@ -107,6 +108,11 @@ namespace GeniesGambit.Core
             if (GenieManager.Instance != null)
             {
                 GenieManager.Instance.ResetAllWishes();
+            }
+
+            if (KeyMechanicManager.Instance != null)
+            {
+                KeyMechanicManager.Instance.ResetKeyMechanic();
             }
 
             StartNewRound();

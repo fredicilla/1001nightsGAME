@@ -104,6 +104,12 @@ namespace GeniesGambit.Genie
 
         void ApplyWish(WishData wish)
         {
+            if (wish.wishType == WishType.Key)
+            {
+                KeyWishEffect.ApplyKeyWish();
+                return;
+            }
+            
             if (wish.swapsTiles)
             {
                 var cells = GetWishCells(wish.wishType);

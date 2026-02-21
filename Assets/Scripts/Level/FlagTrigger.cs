@@ -35,10 +35,13 @@ namespace GeniesGambit.Level
                 return;
             }
             
-            if (!KeyCollectible.HasKey)
+            if (KeyMechanicManager.IsKeyMechanicActive)
             {
-                Debug.Log("[Flag] You need the key first!");
-                return;
+                if (!KeyCollectible.HasKey)
+                {
+                    Debug.Log("[Flag] You need the key first!");
+                    return;
+                }
             }
             
             if (_gateController != null)
