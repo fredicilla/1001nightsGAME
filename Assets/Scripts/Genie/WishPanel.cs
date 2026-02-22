@@ -9,6 +9,9 @@ namespace GeniesGambit.Genie
         [SerializeField] GameObject  wishCardPrefab;
         [SerializeField] Transform   cardContainer;
         [SerializeField] GameObject  panelRoot;
+        [Header("Visuals")]
+        [SerializeField] UnityEngine.UI.Image genieDisplayHolder;
+        [SerializeField] Sprite               genieSprite;
 
         readonly List<WishCardUI> _cards = new();
 
@@ -17,13 +20,27 @@ namespace GeniesGambit.Genie
             foreach (var card in _cards) Destroy(card.gameObject);
             _cards.Clear();
 
-            foreach (var wish in wishes)
+            float[] xOffsets = { -60f, 0f, 60f };
+
+            for (int i = 0; i < wishes.Count; i++)
             {
                 var go   = Instantiate(wishCardPrefab, cardContainer);
                 var card = go.GetComponent<WishCardUI>();
-                card.Populate(wish);
+                card.Populate(wishes[i]);
                 _cards.Add(card);
+
+                // Apply X offset based on position (left / center / right)
+                if (i < xOffsets.Length)
+                {
+                    var rt = go.GetComponent<RectTransform>();
+                    var pos = rt.anchoredPosition;
+                    pos.x += xOffsets[i];
+                    rt.anchoredPosition = pos;
+                }
             }
+            if (genieDisplayHolder != null && genieSprite != null)
+                genieDisplayHolder.sprite = genieSprite;
+
             panelRoot.SetActive(true);
         }
 

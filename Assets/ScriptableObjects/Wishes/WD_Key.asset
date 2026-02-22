@@ -15,10 +15,10 @@ MonoBehaviour:
   wishType: 5
   wishNameArabic: "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0643\u0646\u0632"
   wishNameEnglish: The Key
-  wishIcon: {fileID: 0}
+  wishIcon: {fileID: -1214913738433358330, guid: eb5cb8a5cdd26ff479e94152d3f8d40a, type: 3}
   genieQuote: A key appears, but so does the lock that guards your treasure!
   affectsHero: 1
   affectsMonster: 0
-  spawnPrefab: {fileID: 0}
+  spawnPrefab: {fileID: 1086181809374216519, guid: 5ed11f4c24c85ec4a9d40234d7e7710d, type: 3}
   swapsTiles: 0
   replacementTile: {fileID: 0}

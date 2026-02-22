@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: WD_FallingCoins
   m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Genie.WishData
   wishType: 4
-  wishNameArabic: "\u0627\u0644\u0645\u0627\u0644"
+  wishNameArabic: 
   wishNameEnglish: The Money
-  wishIcon: {fileID: 0}
+  wishIcon: {fileID: 250865665036153621, guid: db584ac716642b945b7372827513f238, type: 3}
   genieQuote: Greed weighs heavy on the soul...
   affectsHero: 1
   affectsMonster: 0

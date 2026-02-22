@@ -22,13 +22,14 @@ namespace GeniesGambit.Level
         {
             IsKeyMechanicActive = true;
             Debug.Log("[KeyMechanic] Key mechanic activated! All gates are now locked.");
-            
+
             KeyCollectible.ResetKey();
-            
+
             GateController[] gates = FindObjectsByType<GateController>(FindObjectsSortMode.None);
             foreach (var gate in gates)
             {
                 gate.SetGateState(true);
+                gate.RefreshGateState();
             }
         }
 

@@ -109,6 +109,12 @@ namespace GeniesGambit.Genie
                 KeyWishEffect.ApplyKeyWish();
                 return;
             }
+
+            if (wish.wishType == WishType.FlyingCarpet)
+            {
+                // Logic for flying carpet (placeholder for now)
+                Debug.Log("[Genie] Spawning Flying Carpet!");
+            }
             
             if (wish.swapsTiles)
             {
@@ -148,6 +154,7 @@ namespace GeniesGambit.Genie
             return type switch
             {
                 WishType.Wife => new Vector3(6.38f, 5f, 0f),
+                WishType.FlyingCarpet => new Vector3(0f, 2f, 0f), // Placeholder spawn point
                 _ => Vector3.zero
             };
         }

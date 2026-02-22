@@ -12,19 +12,19 @@ namespace GeniesGambit.Level
         void Awake()
         {
             _spriteRenderer = GetComponent<SpriteRenderer>();
-            Initialize();
+            RefreshGateState();
         }
 
-        void Initialize()
+        public void RefreshGateState()
         {
             if (_spriteRenderer == null) return;
-            
+
             if (KeyMechanicManager.IsKeyMechanicActive)
             {
                 if (closedGateSprite != null)
                 {
                     _spriteRenderer.sprite = closedGateSprite;
-                    Debug.Log("[Gate] Gate initialized as closed (key mechanic active)");
+                    Debug.Log("[Gate] Gate set to CLOSED (key mechanic active)");
                 }
             }
             else
@@ -32,7 +32,7 @@ namespace GeniesGambit.Level
                 if (openGateSprite != null)
                 {
                     _spriteRenderer.sprite = openGateSprite;
-                    Debug.Log("[Gate] Gate initialized as open (key mechanic not active)");
+                    Debug.Log("[Gate] Gate set to OPEN (key mechanic not active)");
                 }
             }
         }

@@ -10,7 +10,8 @@ namespace GeniesGambit.Genie
         Wife,          // زوجة       — spawns extra chasing monster
         Wisdom,        // حكمة       — triggers password puzzle
         FallingCoins,  // المال      — coins slow player down when collected
-        Key            // مفتاح      — locks gates, requires key collection
+        Key,            // مفتاح      — locks gates, requires key collection
+        FlyingCarpet    // بساط       — spawns a moving platform
     }
 
     [CreateAssetMenu(

@@ -15,7 +15,7 @@ MonoBehaviour:
   wishType: 1
   wishNameArabic: "\u0627\u0644\u0639\u0633\u0644"
   wishNameEnglish: Thorns
-  wishIcon: {fileID: 0}
+  wishIcon: {fileID: -5479061149804332656, guid: 590a153422ac80e4e848c7ebde441d41, type: 3}
   genieQuote: Sharp thorns shall rise from the ground...
   affectsHero: 1
   affectsMonster: 0

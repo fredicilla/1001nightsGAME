@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72ed9a8af813c8e4cbca536ca22197df, type: 3}
   m_Name: WD_Wisdom
   m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Genie.WishData
-  wishType: 4
+  wishType: 3
   wishNameArabic: "\u062D\u0643\u0645\u0629"
   wishNameEnglish: Wisdom
-  wishIcon: {fileID: 0}
+  wishIcon: {fileID: -8121670645760568182, guid: 9c0ffcfec1769d94d8593629ef670a5e, type: 3}
   genieQuote: Knowledge is power... but the riddle blocks your path!
   affectsHero: 1
   affectsMonster: 0

@@ -15,7 +15,7 @@ MonoBehaviour:
   wishType: 2
   wishNameArabic: "\u0632\u0648\u062C\u0629"
   wishNameEnglish: The Wife
-  wishIcon: {fileID: 0}
+  wishIcon: {fileID: -6705357559473831391, guid: 5a87771eac3f55942bb6ed0a7200a26c, type: 3}
   genieQuote: A dark presence hunts you...
   affectsHero: 1
   affectsMonster: 0

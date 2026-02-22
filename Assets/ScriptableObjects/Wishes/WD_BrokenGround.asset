@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: WD_BrokenGround
   m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Genie.WishData
   wishType: 0
-  wishNameArabic: "\u0627\u0631\u0627\u0636\u064A"
+  wishNameArabic: 
   wishNameEnglish: Broken Ground
-  wishIcon: {fileID: 0}
+  wishIcon: {fileID: -980576781679041484, guid: ecdcedccaed93a84496c946451d7d6a4, type: 3}
   genieQuote: The ground shall crumble beneath your feet...
   affectsHero: 1
   affectsMonster: 0
