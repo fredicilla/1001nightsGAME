@@ -76,6 +76,7 @@ namespace GeniesGambit.Genie
                 _offeredWishes.Add(shuffled[i]);
 
             wishPanelUI.ShowWishes(_offeredWishes);
+            AudioManager.Play(AudioManager.SoundID.WishScreenOpen);
         }
 
         public void OnWishChosen(WishData wish)
@@ -96,6 +97,7 @@ namespace GeniesGambit.Genie
                 ApplyWish(wish);
 
             wishPanelUI.Hide();
+            AudioManager.Play(AudioManager.SoundID.Select);
 
             if (RoundManager.Instance != null)
             {

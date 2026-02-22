@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using GeniesGambit.Core;
 
 namespace GeniesGambit.Combat
 {
@@ -197,6 +198,7 @@ namespace GeniesGambit.Combat
 
             Debug.Log($"[ProjectileShooter] {gameObject.name} REPLAYING shot - Spawn: {spawnPosition}, Dir: {direction}, Target: '{projectileTargetTag}'");
 
+            AudioManager.Play(AudioManager.SoundID.Throw);
             GameObject projectile = Instantiate(projectilePrefab, spawnPosition, Quaternion.identity);
             projectile.transform.right = direction;
 
@@ -233,6 +235,7 @@ namespace GeniesGambit.Combat
                 projectileScript.Initialize(direction, projectileSpeed, projectileTargetTag, shooterCollider);
             }
 
+            AudioManager.Play(AudioManager.SoundID.Throw);
             Debug.Log($"[ProjectileShooter] {gameObject.name} fired projectile in direction {direction}!");
 
             if (_isRecording)

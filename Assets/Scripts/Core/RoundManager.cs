@@ -51,6 +51,7 @@ namespace GeniesGambit.Core
                 return;
             }
 
+            AudioManager.Play(AudioManager.SoundID.NewRound);
             if (IterationManager.Instance != null)
             {
                 int iterationCount = GetIterationsForCurrentRound();
@@ -131,6 +132,7 @@ namespace GeniesGambit.Core
             if (GameManager.Instance != null)
                 GameManager.Instance.SetState(GameState.LevelComplete);
 
+            AudioManager.Play(AudioManager.SoundID.GameWin);
             if (victoryScreen != null)
             {
                 victoryScreen.SetActive(true);

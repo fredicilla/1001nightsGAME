@@ -54,6 +54,8 @@ namespace GeniesGambit.UI
             int currentIteration = IterationManager.Instance.CurrentIteration;
             if (currentIteration < 1) return;
 
+            Core.AudioManager.Play(Core.AudioManager.SoundID.Rewind);
+
             if (currentIteration <= 1)
             {
                 // At iteration 1 — can't go back further, just restart from scratch

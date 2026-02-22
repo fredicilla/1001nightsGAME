@@ -1,5 +1,6 @@
 using UnityEngine;
 using GeniesGambit.Combat;
+using GeniesGambit.Core;
 
 namespace GeniesGambit.Level
 {
@@ -21,6 +22,7 @@ namespace GeniesGambit.Level
                 rb.bodyType = RigidbodyType2D.Kinematic;
             }
 
+            AudioManager.Play(AudioManager.SoundID.SpikeDamage);
             // Kill through Health so IterationManager's OnDeath handlers handle the respawn
             var health = other.GetComponent<Health>();
             if (health != null)

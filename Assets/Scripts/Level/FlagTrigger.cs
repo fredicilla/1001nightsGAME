@@ -65,6 +65,7 @@ namespace GeniesGambit.Level
 
             _triggeredInIteration = currentIteration;
 
+            AudioManager.Play(AudioManager.SoundID.Win);
             _gateController?.OpenGate();
 
             if (iterationMgr != null)

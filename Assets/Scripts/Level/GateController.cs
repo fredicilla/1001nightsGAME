@@ -1,4 +1,5 @@
 using UnityEngine;
+using GeniesGambit.Core;
 
 namespace GeniesGambit.Level
 {
@@ -6,7 +7,7 @@ namespace GeniesGambit.Level
     {
         [SerializeField] Sprite openGateSprite;
         [SerializeField] Sprite closedGateSprite;
-        
+
         SpriteRenderer _spriteRenderer;
 
         void Awake()
@@ -40,7 +41,7 @@ namespace GeniesGambit.Level
         public void SetGateState(bool locked)
         {
             if (_spriteRenderer == null) return;
-            
+
             if (locked && closedGateSprite != null)
             {
                 _spriteRenderer.sprite = closedGateSprite;
@@ -57,6 +58,7 @@ namespace GeniesGambit.Level
             {
                 _spriteRenderer.sprite = openGateSprite;
                 Debug.Log("[Gate] Gate opened!");
+                AudioManager.Play(AudioManager.SoundID.GateOpen);
             }
         }
     }

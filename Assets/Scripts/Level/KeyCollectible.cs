@@ -1,4 +1,5 @@
 using UnityEngine;
+using GeniesGambit.Core;
 
 namespace GeniesGambit.Level
 {
@@ -12,7 +13,7 @@ namespace GeniesGambit.Level
         {
             _instance = this;
             _startPosition = transform.position;
-            
+
             if (!KeyMechanicManager.IsKeyMechanicActive)
             {
                 gameObject.SetActive(false);
@@ -22,8 +23,9 @@ namespace GeniesGambit.Level
         void OnTriggerEnter2D(Collider2D other)
         {
             if (!other.CompareTag("Player")) return;
-            
+
             HasKey = true;
+            AudioManager.Play(AudioManager.SoundID.KeyCollect);
             Debug.Log("[Key] Collected! You can now open the treasure!");
             gameObject.SetActive(false);
         }
@@ -34,7 +36,7 @@ namespace GeniesGambit.Level
             if (_instance != null)
             {
                 _instance.transform.position = _instance._startPosition;
-                
+
                 if (KeyMechanicManager.IsKeyMechanicActive)
                 {
                     _instance.gameObject.SetActive(true);

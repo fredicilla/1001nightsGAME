@@ -1,4 +1,5 @@
 using UnityEngine;
+using GeniesGambit.Core;
 
 namespace GeniesGambit.Combat
 {
@@ -23,6 +24,7 @@ namespace GeniesGambit.Combat
         {
             if (_isDead) return;
 
+            AudioManager.Play(AudioManager.SoundID.Die);
             _currentHealth -= damage;
             Debug.Log($"[Health] {gameObject.name} took {damage} damage. Health: {_currentHealth}/{maxHealth}");
 

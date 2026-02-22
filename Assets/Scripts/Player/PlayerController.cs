@@ -91,6 +91,7 @@ namespace GeniesGambit.Player
             if (!wasGrounded && _isGrounded)
             {
                 Debug.Log("[Player] Landed on ground");
+                Core.AudioManager.Play(Core.AudioManager.SoundID.Land);
             }
 
             if (_isGrounded) _coyoteCounter = coyoteTime;
@@ -119,6 +120,7 @@ namespace GeniesGambit.Player
             {
                 _isFallingRespawn = true;  // block repeated calls from subsequent frames
                 Debug.Log("[Player] Fell off the map! Respawning...");
+                Core.AudioManager.Play(Core.AudioManager.SoundID.Fall);
 
                 var iterationManager = FindFirstObjectByType<Core.IterationManager>();
                 if (iterationManager != null && iterationManager.CurrentIteration == 1)
@@ -168,6 +170,7 @@ namespace GeniesGambit.Player
                 Debug.Log($"[Player] Applying jump force: {jumpForce}");
                 _rb.linearVelocity = new Vector2(_rb.linearVelocity.x, jumpForce);
                 _coyoteCounter = 0f;
+                Core.AudioManager.Play(Core.AudioManager.SoundID.Jump);
                 Debug.Log($"[Player] Jump applied! New velocity: {_rb.linearVelocity}");
             }
             _jumpPressed = false;
