@@ -17,6 +17,11 @@ namespace GeniesGambit.Core
         public int CurrentRound => _currentRound;
         public int TotalRounds => enableRound7 ? totalRounds + 1 : totalRounds;
 
+        public int GetIterationsForCurrentRound()
+        {
+            return _currentRound <= 2 ? 3 : 5;
+        }
+
         void Awake()
         {
             if (Instance != null && Instance != this)
@@ -47,7 +52,8 @@ namespace GeniesGambit.Core
 
             if (IterationManager.Instance != null)
             {
-                IterationManager.Instance.BeginIterationCycle();
+                int iterationCount = GetIterationsForCurrentRound();
+                IterationManager.Instance.BeginIterationCycle(iterationCount);
             }
             else
             {
@@ -57,9 +63,9 @@ namespace GeniesGambit.Core
 
         public void OnIterationCycleComplete()
         {
-            Debug.Log($"[RoundManager] Round {_currentRound} complete! All 3 iterations succeeded!");
+            int iterations = GetIterationsForCurrentRound();
+            Debug.Log($"[RoundManager] Round {_currentRound} complete! All {iterations} iterations succeeded!");
 
-            // If no GenieManager or no wishes remaining, skip genie screen and go to next round
             if (GenieManager.Instance == null)
             {
                 Debug.Log("[RoundManager] No GenieManager found! Moving to next round.");

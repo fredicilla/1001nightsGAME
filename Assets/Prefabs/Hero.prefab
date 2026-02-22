@@ -223,7 +223,7 @@ CapsuleCollider2D:
   m_CompositeOperation: 0
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
-  m_Size: {x: 4, y: 9}
+  m_Size: {x: 4, y: 5}
   m_Direction: 0
 --- !u!114 &8497213622533551609
 MonoBehaviour:
@@ -275,6 +275,7 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 384
+  invertFlip: 0
 --- !u!95 &5181271470980395321
 Animator:
   serializedVersion: 7
@@ -327,3 +328,4 @@ MonoBehaviour:
   projectileSpeed: 10
   fireRate: 0.5
   projectileTargetTag: Enemy
+  invertShootingDirection: 0

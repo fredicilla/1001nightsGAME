@@ -44,13 +44,12 @@ namespace GeniesGambit.Level
                 }
             }
 
-            _triggeredInIteration = currentIteration;  // mark — won't fire again this iteration
+            _triggeredInIteration = currentIteration;
 
             _gateController?.OpenGate();
             
             if (iterationMgr != null)
             {
-                
                 if (currentIteration == 1)
                 {
                     iterationMgr.OnHeroReachedFlag();
@@ -58,6 +57,10 @@ namespace GeniesGambit.Level
                 else if (currentIteration == 3)
                 {
                     iterationMgr.OnHeroReachedFlagInIteration3();
+                }
+                else if (currentIteration == 5)
+                {
+                    iterationMgr.OnHeroReachedFlagInIteration5();
                 }
                 else
                 {

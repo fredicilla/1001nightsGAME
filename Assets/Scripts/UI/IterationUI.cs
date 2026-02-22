@@ -98,8 +98,8 @@ namespace GeniesGambit.UI
             }
 
             int iteration = IterationManager.Instance.CurrentIteration;
+            int totalIterations = IterationManager.Instance.TotalIterations;
 
-            // Detect iteration change and show transition banner
             if (iteration != _lastIteration && iteration > 0)
             {
                 ShowTransitionBanner(iteration);
@@ -108,7 +108,7 @@ namespace GeniesGambit.UI
 
             if (iterationText != null)
             {
-                iterationText.text = $"Iteration: {iteration}/3";
+                iterationText.text = $"Iteration: {iteration}/{totalIterations}";
             }
 
             if (roleText != null)
@@ -119,10 +119,23 @@ namespace GeniesGambit.UI
                         roleText.text = "You control: HERO - Reach the flag!";
                         break;
                     case 2:
-                        roleText.text = "You control: ENEMY - Stop the ghost!";
+                        roleText.text = "You control: ENEMY #1 - Stop the ghost!";
                         break;
                     case 3:
-                        roleText.text = "You control: HERO - Survive the ghost enemy!";
+                        if (totalIterations == 3)
+                        {
+                            roleText.text = "You control: HERO - Survive the ghost enemy!";
+                        }
+                        else
+                        {
+                            roleText.text = "You control: HERO - Dodge ghost enemy #1 and reach the flag!";
+                        }
+                        break;
+                    case 4:
+                        roleText.text = "You control: ENEMY #2 - Stop the ghost hero!";
+                        break;
+                    case 5:
+                        roleText.text = "You control: HERO - Survive both ghost enemies!";
                         break;
                     default:
                         roleText.text = "";
@@ -138,8 +151,10 @@ namespace GeniesGambit.UI
             string message = iteration switch
             {
                 1 => "ITERATION 1\nYou are the HERO!",
-                2 => "ITERATION 2\nNow you are the ENEMY!",
+                2 => "ITERATION 2\nNow you are ENEMY #1!",
                 3 => "ITERATION 3\nYou are the HERO again!",
+                4 => "ITERATION 4\nNow you are ENEMY #2!",
+                5 => "ITERATION 5\nFinal Challenge - HERO!",
                 _ => ""
             };
 

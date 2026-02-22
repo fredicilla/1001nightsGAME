@@ -142,12 +142,11 @@ namespace GeniesGambit.Genie
                     new Vector3( 0f, 0.68f,      0)   // Platform1 (flag) – middle
                 },
 
-                // BrokenGround – gaps on BOTH Platform2 (hero run) and Platform1 (flag area)
+                // BrokenGround – gaps on Platform1 (bottom platform with flag)
                 WishType.BrokenGround => new List<Vector3>
                 {
-                    new Vector3(-4f, 2.93f, 0),  // Platform2 left gap
-                    new Vector3(-1f, 2.93f, 0),  // Platform2 right gap
-                    new Vector3( 1f, 0.68f, 0)   // Platform1 gap near flag
+                    new Vector3(-1.5f, -0.5f, 0),  // Platform1 tile 3 from left (cell x=-2, y=-1)
+                    new Vector3( 1.5f, -0.5f, 0)   // Platform1 tile 6 from left (cell x=1, y=-1)
                 },
 
                 _ => new List<Vector3>()
