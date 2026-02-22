@@ -8,7 +8,7 @@ namespace GeniesGambit.Genie
         public static void ApplyKeyWish()
         {
             Debug.Log("[KeyWish] Applying Key Wish effect...");
-            
+
             if (KeyMechanicManager.Instance != null)
             {
                 KeyMechanicManager.Instance.ActivateKeyMechanic();
@@ -20,7 +20,7 @@ namespace GeniesGambit.Genie
                 managerGO.AddComponent<KeyMechanicManager>();
                 KeyMechanicManager.Instance.ActivateKeyMechanic();
             }
-            
+
             Debug.Log("[KeyWish] The Genie has locked all gates! You must find keys to proceed.");
         }
     }

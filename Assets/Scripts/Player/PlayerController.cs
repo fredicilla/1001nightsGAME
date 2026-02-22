@@ -33,6 +33,11 @@ namespace GeniesGambit.Player
         float _coyoteCounter;
         bool _active = true;
         bool _isFallingRespawn = false;  // prevents repeated restart calls while falling
+        PlayerInput _playerInput;
+
+        /// <summary>True while this character accepts player input AND has an active PlayerInput component.
+        /// Only the character currently being controlled by the human player will return true.</summary>
+        public bool IsActive => _active && _playerInput != null && _playerInput.isActiveAndEnabled;
         Vector3 _startPosition;
         float _weightSlowdown = 0f;
 
@@ -42,14 +47,14 @@ namespace GeniesGambit.Player
             _sr = GetComponent<SpriteRenderer>();
             _animator = GetComponent<Animator>();
             _recorder = GetComponent<MovementRecorder>();
+            _playerInput = GetComponent<PlayerInput>();
 
             _startPosition = transform.position;
 
-            var playerInput = GetComponent<PlayerInput>();
-            if (playerInput != null)
+            if (_playerInput != null)
             {
-                _moveAction = playerInput.actions["Move"];
-                _jumpAction = playerInput.actions["Jump"];
+                _moveAction = _playerInput.actions["Move"];
+                _jumpAction = _playerInput.actions["Jump"];
 
                 if (_jumpAction != null)
                     _jumpAction.performed += OnJumpPerformed;

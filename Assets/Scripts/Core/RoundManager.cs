@@ -13,6 +13,7 @@ namespace GeniesGambit.Core
         [SerializeField] bool enableRound7 = false;
 
         int _currentRound = 0;
+        bool _playingBonusRound = false;   // extra iteration after the last wish
 
         public int CurrentRound => _currentRound;
         public int TotalRounds => enableRound7 ? totalRounds + 1 : totalRounds;
@@ -66,50 +67,87 @@ namespace GeniesGambit.Core
             int iterations = GetIterationsForCurrentRound();
             Debug.Log($"[RoundManager] Round {_currentRound} complete! All {iterations} iterations succeeded!");
 
+            // If this was the bonus round that plays after the last wish, end the game now.
+            if (_playingBonusRound)
+            {
+                _playingBonusRound = false;
+                Debug.Log("[RoundManager] Bonus round complete. Game over — you win!");
+                EndGame();
+                return;
+            }
+
             if (GenieManager.Instance == null)
             {
-                Debug.Log("[RoundManager] No GenieManager found! Moving to next round.");
+                // No genie system — transition through GenieWishScreen anyway so
+                // state-change listeners (input, coins, FlagTrigger) fire correctly,
+                // then immediately start the next round.
+                if (GameManager.Instance != null)
+                    GameManager.Instance.SetState(GameState.GenieWishScreen);
                 StartNewRound();
                 return;
             }
 
-            int wishesRemaining = GenieManager.Instance.GetRemainingWishCount();
-
-            if (wishesRemaining == 0)
-            {
-                Debug.Log("[RoundManager] No wishes remaining! Moving to next round without genie screen.");
-                StartNewRound();
-                return;
-            }
-
+            // ALWAYS transition through GenieWishScreen so every registered listener
+            // (PlayerController input toggle, CoinSpawner, FlagTrigger reset, etc.)
+            // gets the correct old→new state pair and resets properly.  If there are
+            // no wishes left, GenieManager.BeginWishSelection will call OnWishApplied
+            // directly (skipping the panel) which starts the next round from
+            // GenieWishScreen state — guaranteeing the HeroTurn event fires cleanly.
             if (GameManager.Instance != null)
-            {
                 GameManager.Instance.SetState(GameState.GenieWishScreen);
-            }
         }
 
         public void OnWishApplied()
         {
             Debug.Log($"[RoundManager] Wish applied. Starting Round {_currentRound + 1}...");
+
+            // If the NEXT call to StartNewRound would exceed TotalRounds, run a bonus
+            // iteration instead so the player gets to experience their last wish.
+            if (_currentRound >= TotalRounds)
+            {
+                Debug.Log("[RoundManager] Last round wish applied — starting BONUS iteration!");
+                _playingBonusRound = true;
+
+                if (IterationManager.Instance != null)
+                {
+                    int iterationCount = GetIterationsForCurrentRound();
+                    IterationManager.Instance.BeginIterationCycle(iterationCount);
+                }
+                return;
+            }
+
             StartNewRound();
         }
+
+        [Header("Victory Screen")]
+        [SerializeField] GameObject victoryScreen;
 
         void EndGame()
         {
             Debug.Log("╔══════════════════════════════════════╗");
-            Debug.Log("║   🎉 ALL ROUNDS COMPLETE! 🎉         ║");
-            Debug.Log("║   YOU WIN!                           ║");
+            Debug.Log("║   ALL ROUNDS COMPLETE! YOU WIN!      ║");
             Debug.Log("╚══════════════════════════════════════╝");
 
             if (GameManager.Instance != null)
-            {
                 GameManager.Instance.SetState(GameState.LevelComplete);
+
+            if (victoryScreen != null)
+            {
+                victoryScreen.SetActive(true);
+                Debug.Log("[RoundManager] Victory screen shown.");
+            }
+            else
+            {
+                // No victory screen wired in inspector — restart after 3 seconds
+                Debug.Log("[RoundManager] No victory screen assigned. Auto-restarting in 3s...");
+                Invoke(nameof(RestartGame), 3f);
             }
         }
 
         public void RestartGame()
         {
             _currentRound = 0;
+            _playingBonusRound = false;
 
             if (GenieManager.Instance != null)
             {

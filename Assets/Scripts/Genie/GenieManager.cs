@@ -54,7 +54,13 @@ namespace GeniesGambit.Genie
             if (availableWishes.Count == 0)
             {
                 Debug.Log("[Genie] All wishes have been used! Skipping wish screen.");
-                GameManager.Instance.SetState(GameState.HeroTurn);
+                // Call OnWishApplied so StartNewRound() is invoked from GenieWishScreen
+                // state — ensuring the HeroTurn transition event fires correctly for
+                // all listeners (input, coins, flag, etc.).
+                if (RoundManager.Instance != null)
+                    RoundManager.Instance.OnWishApplied();
+                else if (GameManager.Instance != null)
+                    GameManager.Instance.SetState(GameState.HeroTurn);
                 return;
             }
 
@@ -115,7 +121,7 @@ namespace GeniesGambit.Genie
                 // Logic for flying carpet (placeholder for now)
                 Debug.Log("[Genie] Spawning Flying Carpet!");
             }
-            
+
             if (wish.swapsTiles)
             {
                 var cells = GetWishCells(wish.wishType);
@@ -158,13 +164,13 @@ namespace GeniesGambit.Genie
             return type switch
             {
                 // Wife monster – right edge of Platform3 (enemy spawn zone)
-                WishType.Wife         => new Vector3(4f,   4.5f,  0f),
+                WishType.Wife => new Vector3(4f, 4.5f, 0f),
 
                 // Flying carpet – hovers between Platform2 and Platform1
-                WishType.FlyingCarpet => new Vector3(-2f,  1.8f,  0f),
+                WishType.FlyingCarpet => new Vector3(-2f, 1.8f, 0f),
 
                 // Wisdom puzzle – above Platform1 near the flag
-                WishType.Wisdom       => new Vector3( 0f,  1.5f,  0f),
+                WishType.Wisdom => new Vector3(0f, 1.5f, 0f),
 
                 _ => Vector3.zero
             };
