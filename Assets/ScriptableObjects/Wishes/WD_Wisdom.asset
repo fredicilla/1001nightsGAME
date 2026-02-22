@@ -18,7 +18,7 @@ MonoBehaviour:
   wishIcon: {fileID: -8121670645760568182, guid: 9c0ffcfec1769d94d8593629ef670a5e, type: 3}
   genieQuote: Knowledge is power... but the riddle blocks your path!
   affectsHero: 1
-  affectsMonster: 0
-  spawnPrefab: {fileID: 0}
+  affectsMonster: 1
+  spawnPrefab: {fileID: 381185138839330415, guid: a228afdcdde7b184dbae946f5a641e3a, type: 3}
   swapsTiles: 0
   replacementTile: {fileID: 0}

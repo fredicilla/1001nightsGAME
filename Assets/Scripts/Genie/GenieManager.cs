@@ -155,6 +155,7 @@ namespace GeniesGambit.Genie
             {
                 WishType.Wife => new Vector3(6.38f, 5f, 0f),
                 WishType.FlyingCarpet => new Vector3(0f, 2f, 0f), // Placeholder spawn point
+                WishType.Wisdom => Vector3.zero,
                 _ => Vector3.zero
             };
         }
