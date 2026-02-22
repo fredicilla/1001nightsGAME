@@ -235,19 +235,6 @@ namespace GeniesGambit.Player
             Gizmos.DrawWireSphere(groundCheck.position, groundRadius);
         }
 
-        void OnGUI()
-        {
-            if (!Application.isPlaying) return;
 
-            GUIStyle style = new GUIStyle();
-            style.fontSize = 20;
-            style.normal.textColor = Color.white;
-
-            GUI.Label(new Rect(10, 10, 400, 30), $"Grounded: {_isGrounded}", style);
-            GUI.Label(new Rect(10, 40, 400, 30), $"CoyoteCounter: {_coyoteCounter:F2}", style);
-            GUI.Label(new Rect(10, 70, 400, 30), $"Active: {_active}", style);
-            GUI.Label(new Rect(10, 100, 400, 30), $"Velocity: {_rb.linearVelocity}", style);
-            GUI.Label(new Rect(10, 130, 400, 30), $"Jump Pressed: {_jumpPressed}", style);
-        }
     }
 }

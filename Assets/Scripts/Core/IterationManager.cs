@@ -1046,11 +1046,21 @@ namespace GeniesGambit.Core
                 return;
             }
 
-            Debug.Log("[IterationManager] 🎉 ITERATION CYCLE COMPLETE! Hero reached flag in Iteration 3!");
-
+            // Stop timer first
             if (_iterationTimer != null)
-            {
                 _iterationTimer.StopTimer();
+
+            // Clean up all ghosts immediately so they stop updating/shooting
+            CleanupGhosts();
+
+            // Freeze hero input too so nothing moves while transitioning
+            if (_liveHero != null)
+            {
+                var heroInput = _liveHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
+                if (heroInput != null) heroInput.DeactivateInput();
+
+                var heroRb = _liveHero.GetComponent<Rigidbody2D>();
+                if (heroRb != null) heroRb.linearVelocity = Vector2.zero;
             }
 
             if (RoundManager.Instance != null)
@@ -1061,11 +1071,10 @@ namespace GeniesGambit.Core
             {
                 Debug.LogWarning("[IterationManager] No RoundManager found! Falling back to LevelComplete.");
                 if (GameManager.Instance != null)
-                {
                     GameManager.Instance.SetState(GameState.LevelComplete);
-                }
             }
         }
+
 
         /// <summary>
         /// Restart Iteration 2 when enemy dies or ghost reaches flag.

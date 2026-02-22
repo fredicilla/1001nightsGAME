@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using GeniesGambit.Core;
 
 namespace GeniesGambit.Player
 {
@@ -31,9 +32,10 @@ namespace GeniesGambit.Player
             Color ghostColor = _spriteRenderer.color;
             ghostColor.a = 1f;
             _spriteRenderer.color = ghostColor;
-
-            Debug.Log($"[GhostReplay] Started playback with {_frames.Count} frames (3 second delay before movement)");
         }
+
+        /// <summary>Immediately halts playback — called before Destroy.</summary>
+        public void Stop() => _isPlaying = false;
 
         void Update()
         {
@@ -46,7 +48,6 @@ namespace GeniesGambit.Player
                 {
                     _delayComplete = true;
                     _playbackStartTime = Time.time;
-                    Debug.Log("[GhostReplay] Delay complete! Ghost starting to move now!");
                 }
                 return;
             }
@@ -62,7 +63,6 @@ namespace GeniesGambit.Player
             if (_currentFrameIndex >= _frames.Count)
             {
                 _isPlaying = false;
-                Debug.Log("[GhostReplay] Playback finished");
                 return;
             }
 
@@ -70,20 +70,23 @@ namespace GeniesGambit.Player
             transform.position = frame.position;
             _spriteRenderer.flipX = !frame.facingRight;
 
+            // Only trigger a reset if the game is actually mid-round (not on win/wish screen)
             if (transform.position.y < -10f)
             {
-                Debug.Log("[GhostReplay] Ghost fell off map!");
-                var iterationManager = FindFirstObjectByType<Core.IterationManager>();
-                if (iterationManager != null)
+                var state = GameManager.Instance?.CurrentState ?? GameState.HeroTurn;
+                if (state == GameState.HeroTurn || state == GameState.MonsterTurn)
                 {
-                    iterationManager.ResetIterations();
+                    _isPlaying = false;
+                    IterationManager.Instance?.ResetIterations();
+                }
+                else
+                {
+                    // Game is on wish/complete screen — just stop, don't reset
+                    _isPlaying = false;
                 }
             }
         }
 
-        public bool IsPlaybackFinished()
-        {
-            return !_isPlaying;
-        }
+        public bool IsPlaybackFinished() => !_isPlaying;
     }
 }

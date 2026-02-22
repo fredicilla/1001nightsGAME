@@ -7,31 +7,31 @@ namespace GeniesGambit.Level
     public class FlagTrigger : MonoBehaviour
     {
         GateController _gateController;
+        int _triggeredInIteration = -1;  // tracks which iteration already fired — prevents double-trigger per iteration
 
         void Awake()
         {
             _gateController = GetComponent<GateController>();
         }
 
+        void OnEnable() => _triggeredInIteration = -1;  // reset when object re-enables
+
+
         void OnTriggerEnter2D(Collider2D other)
         {
             if (!other.CompareTag("Player")) return;
-            
             var iterationMgr = IterationManager.Instance;
             if (iterationMgr == null)
-            {
                 iterationMgr = FindFirstObjectByType<IterationManager>();
-            }
+
+            int currentIteration = iterationMgr?.CurrentIteration ?? 0;
+            if (_triggeredInIteration == currentIteration) return;  // already fired this iteration
 
             bool isGhost = other.GetComponent<GeniesGambit.Player.GhostReplay>() != null;
             
             if (isGhost)
             {
-                Debug.Log("[Flag] Ghost reached the flag!");
-                if (iterationMgr != null)
-                {
-                    iterationMgr.OnGhostReachedFlag();
-                }
+                iterationMgr?.OnGhostReachedFlag();
                 return;
             }
             
@@ -43,24 +43,20 @@ namespace GeniesGambit.Level
                     return;
                 }
             }
-            
-            if (_gateController != null)
-            {
-                _gateController.OpenGate();
-            }
+
+            _triggeredInIteration = currentIteration;  // mark — won't fire again this iteration
+
+            _gateController?.OpenGate();
             
             if (iterationMgr != null)
             {
-                int currentIteration = iterationMgr.CurrentIteration;
                 
                 if (currentIteration == 1)
                 {
-                    Debug.Log("[Flag] Hero reached flag in Iteration 1!");
                     iterationMgr.OnHeroReachedFlag();
                 }
                 else if (currentIteration == 3)
                 {
-                    Debug.Log("[Flag] Hero reached flag in Iteration 3! Cycle complete!");
                     iterationMgr.OnHeroReachedFlagInIteration3();
                 }
                 else
@@ -80,3 +76,4 @@ namespace GeniesGambit.Level
         }
     }
 }
+

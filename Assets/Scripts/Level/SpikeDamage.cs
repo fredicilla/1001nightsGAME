@@ -1,5 +1,5 @@
 using UnityEngine;
-using GeniesGambit.Core;
+using GeniesGambit.Combat;
 
 namespace GeniesGambit.Level
 {
@@ -10,25 +10,26 @@ namespace GeniesGambit.Level
         {
             if (!other.CompareTag("Player")) return;
 
-            Debug.Log("[Spikes] Player hit spikes! Respawning...");
+            // Ghosts (replaying recordings) should not die from spikes
+            if (other.GetComponent<Player.GhostReplay>() != null) return;
 
-            var playerController = other.GetComponent<Player.PlayerController>();
-            if (playerController != null)
+            // Freeze the character at the spike — prevents it from flying out of the map
+            var rb = other.GetComponent<Rigidbody2D>();
+            if (rb != null)
             {
-                playerController.GetComponent<Rigidbody2D>().linearVelocity = Vector2.zero;
-                playerController.transform.position = new Vector3(-7.5f, 2.278f, 0);
-                playerController.ApplyWeightSlowdown(0f);
+                rb.linearVelocity = Vector2.zero;
+                rb.bodyType = RigidbodyType2D.Kinematic;
+            }
 
-                KeyCollectible.ResetKey();
-                CoinCollectible.ResetCoins();
-
-                var coinSpawner = FindFirstObjectByType<CoinSpawner>();
-                if (coinSpawner != null)
-                    coinSpawner.ResetAllCoins();
-
-                var ghost = FindFirstObjectByType<Enemies.ChasingMonster>();
-                if (ghost != null)
-                    ghost.RespawnGhostPublic();
+            // Kill through Health so IterationManager's OnDeath handlers handle the respawn
+            var health = other.GetComponent<Health>();
+            if (health != null)
+            {
+                health.TakeDamage(999);
+            }
+            else
+            {
+                other.gameObject.SetActive(false);
             }
         }
     }

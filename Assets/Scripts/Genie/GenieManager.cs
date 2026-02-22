@@ -125,26 +125,31 @@ namespace GeniesGambit.Genie
                 Instantiate(wish.spawnPrefab, GetWishSpawnPoint(wish.wishType), Quaternion.identity);
         }
 
+        // ─── Platform world positions (read from SampleScene.unity) ──────────────
+        //   TM_Platform1  bottom / flag platform   cells Y=-1  →  world Y ≈  0.68
+        //   TM_Platform2  main left platform        cells Y= 2  →  world Y ≈  2.93
+        //   TM_Platform3  small top-right platform  cells Y= 3  →  world Y ≈  3.678
+        // ─────────────────────────────────────────────────────────────────────────
+
         List<Vector3> GetWishCells(WishType type)
         {
             return type switch
             {
+                // Thorns – one spike on the main platform (hero) + one near the flag
                 WishType.Thorns => new List<Vector3>
                 {
-                    new Vector3(-6, 0.68f, 0),
-                    new Vector3(-4, 0.68f, 0),
-                    new Vector3(2, 0.68f, 0)
+                    new Vector3(-3f, 2.93f,      0),  // Platform2 (hero) – middle
+                    new Vector3( 0f, 0.68f,      0)   // Platform1 (flag) – middle
                 },
+
+                // BrokenGround – gaps on BOTH Platform2 (hero run) and Platform1 (flag area)
                 WishType.BrokenGround => new List<Vector3>
                 {
-                    new Vector3(-5, -1, 0),
-                    new Vector3(-4, -1, 0),
-                    new Vector3(-3, -1, 0),
-                    new Vector3(-1, -1, 0),
-                    new Vector3(0, -1, 0),
-                    new Vector3(2, -1, 0),
-                    new Vector3(3, -1, 0)
+                    new Vector3(-4f, 2.93f, 0),  // Platform2 left gap
+                    new Vector3(-1f, 2.93f, 0),  // Platform2 right gap
+                    new Vector3( 1f, 0.68f, 0)   // Platform1 gap near flag
                 },
+
                 _ => new List<Vector3>()
             };
         }
@@ -153,9 +158,15 @@ namespace GeniesGambit.Genie
         {
             return type switch
             {
-                WishType.Wife => new Vector3(6.38f, 5f, 0f),
-                WishType.FlyingCarpet => new Vector3(0f, 2f, 0f), // Placeholder spawn point
-                WishType.Wisdom => Vector3.zero,
+                // Wife monster – right edge of Platform3 (enemy spawn zone)
+                WishType.Wife         => new Vector3(4f,   4.5f,  0f),
+
+                // Flying carpet – hovers between Platform2 and Platform1
+                WishType.FlyingCarpet => new Vector3(-2f,  1.8f,  0f),
+
+                // Wisdom puzzle – above Platform1 near the flag
+                WishType.Wisdom       => new Vector3( 0f,  1.5f,  0f),
+
                 _ => Vector3.zero
             };
         }
