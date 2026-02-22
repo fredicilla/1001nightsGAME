@@ -17,13 +17,16 @@ namespace GeniesGambit.Enemies
         [SerializeField] float detectionRange = 15f;
         [SerializeField] float catchDistance = 0.5f;
         [SerializeField] float playerMoveSpeed = 4f;
+        [SerializeField] bool passThroughPlatforms = true;
 
         [Header("References")]
         [SerializeField] Transform player;
         [SerializeField] SpriteRenderer spriteRenderer;
+        [SerializeField] LayerMask groundLayer;
 
         bool _isChasing = false;
         Rigidbody2D _rb;
+        Collider2D _collider;
         Vector3 _spawnPosition = new Vector3(6.38f, 5f, 0f);
         MonsterControlMode _controlMode = MonsterControlMode.AIControlled;
         InputAction _moveAction;
@@ -31,6 +34,7 @@ namespace GeniesGambit.Enemies
         void Awake()
         {
             _rb = GetComponent<Rigidbody2D>();
+            _collider = GetComponent<Collider2D>();
             if (spriteRenderer == null)
                 spriteRenderer = GetComponent<SpriteRenderer>();
         }
@@ -47,12 +51,55 @@ namespace GeniesGambit.Enemies
 
         void Start()
         {
-            if (player == null)
+            FindAndSetPlayer();
+            SetupPlatformPassThrough();
+        }
+
+        void FindAndSetPlayer()
+        {
+            // Find the active player (could be live hero or ghost)
+            // Prioritize non-ghost players first
+            GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
+            GameObject bestTarget = null;
+
+            foreach (var p in players)
             {
-                GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-                if (playerObj != null)
-                    player = playerObj.transform;
+                if (p == null || !p.activeInHierarchy) continue;
+
+                // Prefer live hero over ghosts
+                if (p.GetComponent<Player.GhostReplay>() == null)
+                {
+                    bestTarget = p;
+                    break;
+                }
+                else if (bestTarget == null)
+                {
+                    bestTarget = p;
+                }
             }
+
+            if (bestTarget != null)
+                player = bestTarget.transform;
+        }
+
+        void SetupPlatformPassThrough()
+        {
+            if (!passThroughPlatforms) return;
+
+            // Make the monster kinematic so it flies through platforms
+            if (_rb != null)
+            {
+                _rb.bodyType = RigidbodyType2D.Kinematic;
+                _rb.gravityScale = 0;
+            }
+
+            // Set collider as trigger so it doesn't collide with platforms
+            if (_collider != null)
+            {
+                _collider.isTrigger = true;
+            }
+
+            Debug.Log("[ChasingMonster] Platform pass-through enabled");
         }
 
         void HandleStateChange(GameState oldState, GameState newState)
@@ -65,12 +112,24 @@ namespace GeniesGambit.Enemies
 
         void Update()
         {
+            // Refresh player reference each frame to always target the current active player
+            RefreshPlayerTarget();
+
             if (player == null) return;
             if (!IsGameActive()) return;
 
             float distanceToPlayer = Vector2.Distance(transform.position, player.position);
             if (distanceToPlayer <= detectionRange)
                 _isChasing = true;
+        }
+
+        void RefreshPlayerTarget()
+        {
+            // If current target is inactive or null, find a new one
+            if (player == null || !player.gameObject.activeInHierarchy)
+            {
+                FindAndSetPlayer();
+            }
         }
 
         void FixedUpdate()
@@ -96,7 +155,16 @@ namespace GeniesGambit.Enemies
             if (!_isChasing || player == null) return;
 
             Vector2 direction = (player.position - transform.position).normalized;
-            _rb.linearVelocity = direction * chaseSpeed;
+
+            // For kinematic bodies with trigger colliders, we move via transform
+            if (passThroughPlatforms)
+            {
+                transform.position += (Vector3)(direction * chaseSpeed * Time.fixedDeltaTime);
+            }
+            else
+            {
+                _rb.linearVelocity = direction * chaseSpeed;
+            }
 
             if (spriteRenderer != null)
                 spriteRenderer.flipX = direction.x > 0;
@@ -133,7 +201,7 @@ namespace GeniesGambit.Enemies
             if (playerRb != null)
                 playerRb.linearVelocity = Vector2.zero;
 
-            player.position = new Vector3(-7.5f, 2.278f, 0);
+            player.position = new Vector3(-7.5f, 7.278f, 0);
 
             var playerController = player.GetComponent<Player.PlayerController>();
             if (playerController != null)
@@ -153,7 +221,7 @@ namespace GeniesGambit.Enemies
         {
             transform.position = _spawnPosition;
             _rb.linearVelocity = Vector2.zero;
-            _isChasing = false;
+            _isChasing = true;
         }
 
         public void RespawnGhostPublic()
@@ -182,19 +250,35 @@ namespace GeniesGambit.Enemies
 
         void OnCollisionEnter2D(Collision2D collision)
         {
-            if (!collision.gameObject.CompareTag("Player")) return;
+            HandlePlayerCollision(collision.gameObject);
+        }
+
+        void OnTriggerEnter2D(Collider2D other)
+        {
+            HandlePlayerCollision(other.gameObject);
+        }
+
+        void HandlePlayerCollision(GameObject collidedObject)
+        {
+            if (!collidedObject.CompareTag("Player")) return;
 
             if (_controlMode == MonsterControlMode.PlayerControlled)
             {
-                if (collision.gameObject.GetComponent<Player.GhostReplay>() != null)
+                if (collidedObject.GetComponent<Player.GhostReplay>() != null)
                 {
                     Debug.Log("[Monster] Caught the ghost!");
-                    // NOTE: ChasingMonster is for the Wife wish, not the iteration system
-                    // The iteration system uses Health component for ghost death
+                    // Deal damage to the ghost
+                    var health = collidedObject.GetComponent<Combat.Health>();
+                    if (health != null)
+                    {
+                        health.TakeDamage(1);
+                    }
                 }
             }
             else
             {
+                // Update player reference in case we caught a different player instance
+                player = collidedObject.transform;
                 CatchPlayer();
             }
         }

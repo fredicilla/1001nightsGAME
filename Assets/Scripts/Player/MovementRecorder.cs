@@ -9,6 +9,7 @@ namespace GeniesGambit.Player
         public Vector3 position;
         public bool facingRight;
         public float timestamp;
+        public float speed;  // horizontal speed magnitude for animation
     }
 
     public class MovementRecorder : MonoBehaviour
@@ -17,10 +18,12 @@ namespace GeniesGambit.Player
         bool _isRecording = false;
         float _startTime;
         SpriteRenderer _spriteRenderer;
+        Rigidbody2D _rb;
 
         void Awake()
         {
             _spriteRenderer = GetComponent<SpriteRenderer>();
+            _rb = GetComponent<Rigidbody2D>();
         }
 
         public void StartRecording()
@@ -45,7 +48,8 @@ namespace GeniesGambit.Player
             {
                 position = transform.position,
                 facingRight = !_spriteRenderer.flipX,
-                timestamp = Time.time - _startTime
+                timestamp = Time.time - _startTime,
+                speed = _rb != null ? Mathf.Abs(_rb.linearVelocity.x) : 0f
             };
 
             _recordedFrames.Add(frame);

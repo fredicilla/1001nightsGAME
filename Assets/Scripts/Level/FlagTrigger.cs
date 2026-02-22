@@ -14,7 +14,26 @@ namespace GeniesGambit.Level
             _gateController = GetComponent<GateController>();
         }
 
-        void OnEnable() => _triggeredInIteration = -1;  // reset when object re-enables
+        void OnEnable()
+        {
+            _triggeredInIteration = -1;  // reset when object re-enables
+            GameManager.OnStateChanged += HandleStateChange;
+        }
+
+        void OnDisable()
+        {
+            GameManager.OnStateChanged -= HandleStateChange;
+        }
+
+        void HandleStateChange(GameState old, GameState newState)
+        {
+            // Reset every time a new iteration starts so the flag is always triggerable
+            if (newState == GameState.HeroTurn || newState == GameState.MonsterTurn)
+            {
+                _triggeredInIteration = -1;
+                Debug.Log("[FlagTrigger] Reset triggeredInIteration on state change");
+            }
+        }
 
 
         void OnTriggerEnter2D(Collider2D other)
@@ -28,13 +47,13 @@ namespace GeniesGambit.Level
             if (_triggeredInIteration == currentIteration) return;  // already fired this iteration
 
             bool isGhost = other.GetComponent<GeniesGambit.Player.GhostReplay>() != null;
-            
+
             if (isGhost)
             {
                 iterationMgr?.OnGhostReachedFlag();
                 return;
             }
-            
+
             if (KeyMechanicManager.IsKeyMechanicActive)
             {
                 if (!KeyCollectible.HasKey)
@@ -47,7 +66,7 @@ namespace GeniesGambit.Level
             _triggeredInIteration = currentIteration;
 
             _gateController?.OpenGate();
-            
+
             if (iterationMgr != null)
             {
                 if (currentIteration == 1)

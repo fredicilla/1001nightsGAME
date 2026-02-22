@@ -11,13 +11,16 @@ namespace GeniesGambit.Player
         float _playbackStartTime;
         bool _isPlaying = false;
         SpriteRenderer _spriteRenderer;
-        float _startDelay = 3f;
+        Animator _animator;
+        float _startDelay = 0f;  // No delay - start immediately
         float _delayTimer = 0f;
         bool _delayComplete = false;
 
         void Awake()
         {
-            _spriteRenderer = GetComponent<SpriteRenderer>();
+            // Use GetComponentInChildren as fallback in case the sprite is on a child object
+            _spriteRenderer = GetComponent<SpriteRenderer>() ?? GetComponentInChildren<SpriteRenderer>();
+            _animator = GetComponent<Animator>() ?? GetComponentInChildren<Animator>();
         }
 
         public void StartPlayback(List<FrameData> recordedFrames)
@@ -27,11 +30,24 @@ namespace GeniesGambit.Player
             _playbackStartTime = Time.time;
             _isPlaying = true;
             _delayTimer = 0f;
-            _delayComplete = false;
+            _delayComplete = true;  // Start immediately, no delay
 
-            Color ghostColor = _spriteRenderer.color;
-            ghostColor.a = 1f;
-            _spriteRenderer.color = ghostColor;
+            if (_spriteRenderer != null)
+            {
+                Color ghostColor = _spriteRenderer.color;
+                ghostColor.a = 1f;
+                _spriteRenderer.color = ghostColor;
+            }
+
+            // Immediately set position to first frame so ghost doesn't appear at spawn point
+            if (_frames != null && _frames.Count > 0)
+            {
+                transform.position = _frames[0].position;
+                if (_spriteRenderer != null)
+                    _spriteRenderer.flipX = !_frames[0].facingRight;
+                if (_animator != null)
+                    _animator.SetFloat("Speed", _frames[0].speed);
+            }
         }
 
         /// <summary>Immediately halts playback — called before Destroy.</summary>
@@ -68,21 +84,23 @@ namespace GeniesGambit.Player
 
             FrameData frame = _frames[_currentFrameIndex];
             transform.position = frame.position;
-            _spriteRenderer.flipX = !frame.facingRight;
+            if (_spriteRenderer != null)
+                _spriteRenderer.flipX = !frame.facingRight;
 
-            // Only trigger a reset if the game is actually mid-round (not on win/wish screen)
+            // Drive animation from recorded speed
+            if (_animator != null)
+            {
+                _animator.SetFloat("Speed", frame.speed);
+            }
+
+            // Ghost fell off the map — restart current iteration (not full reset)
             if (transform.position.y < -10f)
             {
+                _isPlaying = false;
                 var state = GameManager.Instance?.CurrentState ?? GameState.HeroTurn;
                 if (state == GameState.HeroTurn || state == GameState.MonsterTurn)
                 {
-                    _isPlaying = false;
-                    IterationManager.Instance?.ResetIterations();
-                }
-                else
-                {
-                    // Game is on wish/complete screen — just stop, don't reset
-                    _isPlaying = false;
+                    IterationManager.Instance?.RestartCurrentIteration();
                 }
             }
         }

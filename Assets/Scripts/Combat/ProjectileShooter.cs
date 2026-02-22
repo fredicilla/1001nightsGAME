@@ -33,8 +33,8 @@ namespace GeniesGambit.Combat
         float _replayStartTime;
         int _nextReplayIndex = 0;
 
-        // Replay delay to match GhostReplay's 3-second delay
-        const float REPLAY_DELAY = 3f;
+        // Replay delay to match GhostReplay's delay (0 = immediate)
+        const float REPLAY_DELAY = 0f;
         float _replayDelayTimer = 0f;
         bool _replayDelayComplete = false;
 
@@ -88,8 +88,8 @@ namespace GeniesGambit.Combat
             _replayStartTime = Time.time;
             _nextReplayIndex = 0;
             _replayDelayTimer = 0f;
-            _replayDelayComplete = false;
-            Debug.Log($"[ProjectileShooter] {gameObject.name} starting replay with {shots.Count} shots (3s delay)");
+            _replayDelayComplete = true;  // Start immediately, no delay
+            Debug.Log($"[ProjectileShooter] {gameObject.name} starting replay with {shots.Count} shots (immediate)");
         }
 
         public void EnableShooting(bool enable, bool recordShots = false)

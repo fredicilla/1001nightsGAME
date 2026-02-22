@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using TMPro;
 using GeniesGambit.Core;
 
@@ -9,9 +10,6 @@ namespace GeniesGambit.UI
     {
         [SerializeField] Button rewindButton;
         [SerializeField] TextMeshProUGUI rewindButtonText;
-
-        float _lastClickTime = -1f;
-        const float DOUBLE_CLICK_TIME = 0.5f;
 
         void Start()
         {
@@ -32,6 +30,12 @@ namespace GeniesGambit.UI
                 return;
             }
 
+            // Keyboard shortcut: Left Shift triggers rewind (same logic as button click)
+            if (Keyboard.current != null && Keyboard.current.leftShiftKey.wasPressedThisFrame)
+            {
+                OnRewindClicked();
+            }
+
             int currentIteration = IterationManager.Instance.CurrentIteration;
             bool canRewind = currentIteration >= 1;
 
@@ -50,20 +54,18 @@ namespace GeniesGambit.UI
             int currentIteration = IterationManager.Instance.CurrentIteration;
             if (currentIteration < 1) return;
 
-            float timeSinceLastClick = Time.time - _lastClickTime;
-
-            if (timeSinceLastClick < DOUBLE_CLICK_TIME && currentIteration > 1)
+            if (currentIteration <= 1)
             {
-                int previousIteration = currentIteration - 1;
-                IterationManager.Instance.RewindToIteration(previousIteration);
-                Debug.Log($"[RewindButton] Double Click - Rewinding to Iteration {previousIteration}");
-                _lastClickTime = -1f;
+                // At iteration 1 — can't go back further, just restart from scratch
+                IterationManager.Instance.ResetIterations();
+                Debug.Log("[RewindButton] At Iteration 1 — resetting entire cycle");
             }
             else
             {
-                IterationManager.Instance.RestartCurrentIteration();
-                Debug.Log($"[RewindButton] Single Click - Restarting Iteration {currentIteration}");
-                _lastClickTime = Time.time;
+                // Rewind to the previous iteration
+                int previousIteration = currentIteration - 1;
+                IterationManager.Instance.RewindToIteration(previousIteration);
+                Debug.Log($"[RewindButton] Rewinding from Iteration {currentIteration} to Iteration {previousIteration}");
             }
         }
     }

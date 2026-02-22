@@ -32,6 +32,7 @@ namespace GeniesGambit.Player
         bool _isGrounded;
         float _coyoteCounter;
         bool _active = true;
+        bool _isFallingRespawn = false;  // prevents repeated restart calls while falling
         Vector3 _startPosition;
         float _weightSlowdown = 0f;
 
@@ -109,17 +110,25 @@ namespace GeniesGambit.Player
                 _animator.SetFloat("Speed", Mathf.Abs(_rb.linearVelocity.x));
             }
 
-            if (transform.position.y < -10f)
+            if (transform.position.y < -10f && !_isFallingRespawn)
             {
+                _isFallingRespawn = true;  // block repeated calls from subsequent frames
                 Debug.Log("[Player] Fell off the map! Respawning...");
 
                 var iterationManager = FindFirstObjectByType<Core.IterationManager>();
                 if (iterationManager != null && iterationManager.CurrentIteration == 1)
                 {
+                    // Iteration 1: full reset clears all recordings and starts fresh
                     iterationManager.ResetIterations();
+                }
+                else if (iterationManager != null)
+                {
+                    // All other iterations: restart current iteration so ghosts replay again
+                    iterationManager.RestartCurrentIteration();
                 }
                 else
                 {
+                    _isFallingRespawn = false;  // simple respawn — allow re-trigger if needed
                     RespawnAtStart();
 
                     var coinSpawner = FindFirstObjectByType<Level.CoinSpawner>();
@@ -162,6 +171,10 @@ namespace GeniesGambit.Player
         void HandleStateChange(GameState old, GameState next)
         {
             _active = next == GameState.HeroTurn || next == GameState.MonsterTurn;
+
+            // Clear the falling-respawn guard whenever a new turn/round starts
+            if (next == GameState.HeroTurn || next == GameState.MonsterTurn)
+                _isFallingRespawn = false;
 
             Debug.Log($"[Player] HandleStateChange: {old} → {next}, _active = {_active}");
 
