@@ -4,68 +4,88 @@ using GeniesGambit.Core;
 namespace GeniesGambit.Player
 {
     /// <summary>
-    /// Scene-level singleton.  Place this component on ANY GameObject in the scene
-    /// (e.g. the Managers object) and assign the "Player emblem" sprite in the inspector.
-    /// It automatically tracks whichever PlayerController is currently active
-    /// (IsActive == true) and renders a bobbing emblem sprite above their head.
-    /// No prefab changes are required.
+    /// Floating emblem above the currently controlled character.
+    ///
+    /// PREFAB MODE (recommended):
+    ///   Assign "Emblem Prefab" in the Inspector.  The prefab controls its own
+    ///   sprite, sorting layer, rotation, scale etc.  The script only drives
+    ///   its world position (yOffset + bob) and show/hide.
+    ///
+    /// FALLBACK MODE:
+    ///   Leave "Emblem Prefab" empty.  The script creates a sprite object from
+    ///   the assigned "Emblem Sprite" (or a yellow diamond if nothing is assigned).
+    ///   Use the Rendering / Position fields to configure it.
     /// </summary>
     public class PlayerEmblem : MonoBehaviour
     {
-        [Header("Emblem Sprite")]
+        [Header("Emblem Prefab (recommended)")]
+        [Tooltip("Drag a prefab here. It will be instantiated at runtime and positioned above the active player. Leave empty to use the sprite fallback below.")]
+        [SerializeField] GameObject emblemPrefab;
+
+        [Header("Fallback Sprite (used only when Emblem Prefab is empty)")]
         [SerializeField] Sprite emblemSprite;
         [SerializeField] Vector2 size = new Vector2(0.6f, 0.6f);
+        [SerializeField] string sortingLayerName = "Default";
+        [SerializeField] int sortingOrder = 20;
+        [SerializeField] float rotationZ = 0f;
 
         [Header("Position")]
-        [SerializeField] float yOffset = 1.8f;
+        [SerializeField] float yOffset = 1.0f;
 
         [Header("Bob Animation")]
         [SerializeField] float bobAmplitude = 0.12f;
         [SerializeField] float bobSpeed = 2.5f;
 
         GameObject _emblemGO;
-        SpriteRenderer _sr;
-        Transform _target;   // transform of the currently active player
+        Quaternion _baseRotation;   // baked from prefab or fallback rotationZ
+        Transform _target;
 
         void Awake()
         {
-            // Create the floating sprite as a root-level object so it moves freely
-            _emblemGO = new GameObject("__PlayerEmblemVisual__");
-            _sr = _emblemGO.AddComponent<SpriteRenderer>();
-            _sr.sortingOrder = 20;
-            _emblemGO.SetActive(false);
-        }
-
-        void Start()
-        {
-            if (emblemSprite != null)
+            if (emblemPrefab != null)
             {
-                _sr.sprite = emblemSprite;
-                float ppu = emblemSprite.pixelsPerUnit;
-                float nativeW = emblemSprite.rect.width / ppu;
-                float nativeH = emblemSprite.rect.height / ppu;
-                _emblemGO.transform.localScale = new Vector3(
-                    size.x / nativeW,
-                    size.y / nativeH,
-                    1f);
+                // Instantiate at scene root — the prefab owns its sorting layer, rotation, scale.
+                _emblemGO = Instantiate(emblemPrefab, Vector3.zero, emblemPrefab.transform.rotation);
+                _emblemGO.name = "__PlayerEmblemVisual__";
+                _baseRotation = emblemPrefab.transform.rotation;
             }
             else
             {
-                // No sprite assigned — create a bright yellow diamond so the emblem is always visible
-                var tex = new Texture2D(32, 32);
-                var pixels = new Color[32 * 32];
-                for (int y = 0; y < 32; y++)
-                    for (int x = 0; x < 32; x++)
-                    {
-                        int dx = Mathf.Abs(x - 16), dy = Mathf.Abs(y - 16);
-                        pixels[y * 32 + x] = (dx + dy <= 14) ? Color.yellow : Color.clear;
-                    }
-                tex.SetPixels(pixels);
-                tex.Apply();
-                _sr.sprite = Sprite.Create(tex, new Rect(0, 0, 32, 32), new Vector2(0.5f, 0.5f), 32);
-                Debug.LogWarning("[PlayerEmblem] No emblem sprite assigned — using yellow diamond fallback.");
+                // Procedural fallback
+                _emblemGO = new GameObject("__PlayerEmblemVisual__");
+                var sr = _emblemGO.AddComponent<SpriteRenderer>();
+                sr.sortingLayerName = sortingLayerName;
+                sr.sortingOrder = sortingOrder;
+
+                if (emblemSprite != null)
+                {
+                    sr.sprite = emblemSprite;
+                    float ppu = emblemSprite.pixelsPerUnit;
+                    _emblemGO.transform.localScale = new Vector3(
+                        size.x / (emblemSprite.rect.width / ppu),
+                        size.y / (emblemSprite.rect.height / ppu),
+                        1f);
+                }
+                else
+                {
+                    var tex = new Texture2D(32, 32);
+                    var pixels = new Color[32 * 32];
+                    for (int y = 0; y < 32; y++)
+                        for (int x = 0; x < 32; x++)
+                        {
+                            int dx = Mathf.Abs(x - 16), dy = Mathf.Abs(y - 16);
+                            pixels[y * 32 + x] = (dx + dy <= 14) ? Color.yellow : Color.clear;
+                        }
+                    tex.SetPixels(pixels);
+                    tex.Apply();
+                    sr.sprite = Sprite.Create(tex, new Rect(0, 0, 32, 32), new Vector2(0.5f, 0.5f), 32);
+                    Debug.LogWarning("[PlayerEmblem] No prefab or sprite assigned — yellow diamond fallback.");
+                }
+
+                _baseRotation = Quaternion.Euler(0f, 0f, rotationZ);
             }
-            RefreshTarget();
+
+            _emblemGO.SetActive(false);
         }
 
         void OnEnable()
@@ -87,7 +107,6 @@ namespace GeniesGambit.Player
 
         void OnStateChanged(GameState old, GameState next) => RefreshTarget();
 
-        /// <summary>Scan all PlayerControllers and pick the one that IsActive.</summary>
         void RefreshTarget()
         {
             _target = null;
@@ -100,12 +119,12 @@ namespace GeniesGambit.Player
                     break;
                 }
             }
-            _emblemGO.SetActive(_target != null);
+            if (_emblemGO != null)
+                _emblemGO.SetActive(_target != null);
         }
 
         void Update()
         {
-            // Re-scan every frame so we react instantly when the active player changes
             var all = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
             Transform found = null;
             foreach (var pc in all)
@@ -120,16 +139,15 @@ namespace GeniesGambit.Player
             if (found != _target)
             {
                 _target = found;
-                _emblemGO.SetActive(_target != null);
-                if (_target != null)
-                    Debug.Log($"[PlayerEmblem] Now tracking: {_target.name}");
+                if (_emblemGO != null)
+                    _emblemGO.SetActive(_target != null);
             }
 
-            if (_target == null) return;
+            if (_target == null || _emblemGO == null) return;
 
             float bob = Mathf.Sin(Time.time * bobSpeed) * bobAmplitude;
             _emblemGO.transform.position = _target.position + new Vector3(0f, yOffset + bob, -0.1f);
-            _emblemGO.transform.rotation = Quaternion.identity;
+            _emblemGO.transform.rotation = _baseRotation;
         }
     }
 }
