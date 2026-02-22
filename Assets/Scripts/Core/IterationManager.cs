@@ -25,6 +25,7 @@ namespace GeniesGambit.Core
         GameObject _liveEnemy1;
         GameObject _liveEnemy2;
         GameObject _ghostHero;
+        GameObject _ghostHero2;
         GameObject _ghostEnemy1;
         GameObject _ghostEnemy2;
 
@@ -891,12 +892,7 @@ namespace GeniesGambit.Core
             Debug.Log("[IterationManager] Ghost enemy #1 killed by hero! Hero defended successfully.");
             _ghostEnemy1 = null;
         }
-        }
 
-        /// <summary>
-        /// Start Iteration 3 from a restart (when hero died).
-        /// Creates a new ghost enemy from the prefab since _liveEnemy no longer exists.
-        /// </summary>
         void StartIteration3FromRestart()
         {
             Debug.Log("=== ITERATION 3 (RESTART): You control HERO (dodge ghost enemy) ===");
