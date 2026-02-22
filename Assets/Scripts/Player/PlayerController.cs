@@ -224,6 +224,11 @@ namespace GeniesGambit.Player
             if (!_active) _rb.linearVelocity = Vector2.zero;
         }
 
+        public void ResetFallGuard()
+        {
+            _isFallingRespawn = false;
+        }
+
         void RespawnAtStart()
         {
             transform.position = _startPosition;

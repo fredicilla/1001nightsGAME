@@ -323,9 +323,8 @@ namespace GeniesGambit.Core
             if (heroController != null)
             {
                 heroController.enabled = true;
+                heroController.ResetFallGuard(); // clear any stale fall guard from a previous fall
             }
-
-            _heroRecorder = _liveHero.GetComponent<MovementRecorder>();
             if (_heroRecorder == null)
             {
                 _heroRecorder = _liveHero.AddComponent<MovementRecorder>();
@@ -971,6 +970,12 @@ namespace GeniesGambit.Core
         {
             Debug.Log("=== ITERATION 3 (RESTART): You control HERO (dodge ghost enemy) ===");
             _currentIteration = 3;
+
+            // Reset the fall guard immediately — GameManager.SetState skips the event when
+            // the state is already HeroTurn, so HandleStateChange never fires and the guard
+            // would stay true forever, making a second fall undetectable.
+            var heroControllerForGuard = _liveHero?.GetComponent<PlayerController>();
+            if (heroControllerForGuard != null) heroControllerForGuard.ResetFallGuard();
 
             // IMPORTANT: Reactivate hero (was deactivated when they died)
             _liveHero.SetActive(true);
@@ -2274,6 +2279,10 @@ namespace GeniesGambit.Core
         {
             Debug.Log("=== ITERATION 5 (RESTART): You control HERO (dodge both ghost enemies) ===");
             _currentIteration = 5;
+
+            // Reset the fall guard — same reason as StartIteration3FromRestart
+            var heroControllerForGuard = _liveHero?.GetComponent<PlayerController>();
+            if (heroControllerForGuard != null) heroControllerForGuard.ResetFallGuard();
 
             _liveHero.SetActive(true);
             _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
