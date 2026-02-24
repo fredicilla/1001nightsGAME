@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using GeniesGambit.Genie;
 using GeniesGambit.Level;
 
@@ -133,17 +134,25 @@ namespace GeniesGambit.Core
                 GameManager.Instance.SetState(GameState.LevelComplete);
 
             AudioManager.Play(AudioManager.SoundID.GameWin);
+
+            // Store round data so the boss fight scene can read it
+            if (GameData.Instance != null)
+                GameData.Instance.RoundsCompleted = _currentRound;
+
             if (victoryScreen != null)
             {
                 victoryScreen.SetActive(true);
                 Debug.Log("[RoundManager] Victory screen shown.");
             }
-            else
-            {
-                // No victory screen wired in inspector — restart after 3 seconds
-                Debug.Log("[RoundManager] No victory screen assigned. Auto-restarting in 3s...");
-                Invoke(nameof(RestartGame), 3f);
-            }
+
+            // Load boss fight after a short cinematic pause
+            Invoke(nameof(LoadBossFight), 3f);
+        }
+
+        void LoadBossFight()
+        {
+            Debug.Log("[RoundManager] Loading BossFight scene...");
+            SceneManager.LoadScene("BossFight");
         }
 
         public void RestartGame()

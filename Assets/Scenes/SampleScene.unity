@@ -596,6 +596,7 @@ GameObject:
   - component: {fileID: 278413893}
   - component: {fileID: 278413892}
   - component: {fileID: 278413894}
+  - component: {fileID: 278413895}
   m_Layer: 0
   m_Name: EventSystem
   m_TagString: Untagged
@@ -664,6 +665,18 @@ MonoBehaviour:
   m_PointerBehavior: 0
   m_CursorLockBehavior: 0
   m_ScrollDeltaPerTick: 6
+--- !u!114 &278413895
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 278413890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c510637ce3c59d84c9915462755894a4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.UI.DeselectOnClick
 --- !u!1 &313272665
 GameObject:
   m_ObjectHideFlags: 0
@@ -1853,7 +1866,7 @@ GameObject:
   m_Component:
   - component: {fileID: 643583124}
   - component: {fileID: 643583125}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: playerEmblem
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1887,8 +1900,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac4f81a847dd99b459b4a6648ec14354, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Player.PlayerEmblem
+  emblemPrefab: {fileID: 7316737757150047000, guid: 8e735ba00b23ced4cb4054b32fc7d1ac, type: 3}
   emblemSprite: {fileID: 3497071281666618295, guid: 641928c0a99278242be1eed6a555d60e, type: 3}
   size: {x: 0.6, y: 0.6}
+  sortingLayerName: Platform
+  sortingOrder: 5
+  rotationZ: 0
   yOffset: 1.8
   bobAmplitude: 0.12
   bobSpeed: 2.5
@@ -3793,6 +3810,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1795162784}
   - component: {fileID: 1795162786}
+  - component: {fileID: 1795162787}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -3829,6 +3847,36 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Core.GameManager
   <CurrentState>k__BackingField: 1
+--- !u!114 &1795162787
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1795162783}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a9d986bca4220934da18e323c58dd313, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Core.AudioManager
+  jumpClip: {fileID: 8300000, guid: 26159d93478fded4b9e17f9d7a29a543, type: 3}
+  landClip: {fileID: 0}
+  fallClip: {fileID: 0}
+  throwClip: {fileID: 8300000, guid: 1044620dc6e09f84988135c4c703a72c, type: 3}
+  dieClip: {fileID: 8300000, guid: fbb9e2a60c2bcda4b94bdec64e3b0997, type: 3}
+  spikeDamageClip: {fileID: 8300000, guid: fbb9e2a60c2bcda4b94bdec64e3b0997, type: 3}
+  coinCollectClip: {fileID: 0}
+  keyCollectClip: {fileID: 0}
+  winClip: {fileID: 8300000, guid: 18f80c18492d22f43b970ede0fbdf646, type: 3}
+  gateOpenClip: {fileID: 0}
+  rewindClip: {fileID: 0}
+  wishScreenOpenClip: {fileID: 0}
+  selectClip: {fileID: 8300000, guid: fac3c427648df2348b6e1b541a77057c, type: 3}
+  newRoundClip: {fileID: 0}
+  gameWinClip: {fileID: 0}
+  musicClip: {fileID: 8300000, guid: 1efb72d0ef2d1394785393fbaf5fc5b3, type: 3}
+  musicVolume: 0.35
+  sfxVolume: 1
 --- !u!1 &1887431612
 GameObject:
   m_ObjectHideFlags: 0
@@ -3885,8 +3933,8 @@ MonoBehaviour:
   roleText: {fileID: 640057929}
   transitionBanner: {fileID: 0}
   transitionText: {fileID: 0}
-  bannerDuration: 2
-  fadeSpeed: 2
+  bannerDuration: 0.3
+  fadeSpeed: 10
 --- !u!1 &1922946489
 GameObject:
   m_ObjectHideFlags: 0
@@ -3912,7 +3960,7 @@ Transform:
   m_GameObject: {fileID: 1922946489}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -7.47, y: 4.78, z: 0}
+  m_LocalPosition: {x: -7, y: 4.78, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4466,7 +4514,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1998180134473212029, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -7.47
+      value: -7
       objectReference: {fileID: 0}
     - target: {fileID: 1998180134473212029, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
       propertyPath: m_LocalPosition.y
@@ -4508,9 +4556,21 @@ PrefabInstance:
       propertyPath: m_IncludeLayers.m_Bits
       value: 4294967295
       objectReference: {fileID: 0}
+    - target: {fileID: 5181271470980395321, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 4b63e0128f1098843ba0ca99a32f7179, type: 2}
     - target: {fileID: 6029640731191570789, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
       propertyPath: m_LocalPosition.y
       value: -4.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8497213622533551609, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
+      propertyPath: m_Actions
+      value: 
+      objectReference: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+    - target: {fileID: 8497213622533551609, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
+      propertyPath: m_DefaultControlScheme
+      value: Keyboard&Mouse
       objectReference: {fileID: 0}
     - target: {fileID: 8497213622533551609, guid: 32efbbadb7e00994995f4100ede10488, type: 3}
       propertyPath: m_NotificationBehavior

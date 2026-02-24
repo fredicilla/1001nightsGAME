@@ -178,8 +178,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ef40cfaea1542ec40a0388f1b908881e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Enemies.ChasingMonster
-  chaseSpeed: 3
+  chaseSpeed: 2
   detectionRange: 15
   catchDistance: 0.5
+  playerMoveSpeed: 4
+  passThroughPlatforms: 1
   player: {fileID: 0}
   spriteRenderer: {fileID: 7740925293428880759}
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 0

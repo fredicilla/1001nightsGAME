@@ -14,8 +14,8 @@ namespace GeniesGambit.UI
         [Header("Transition Banner")]
         [SerializeField] GameObject transitionBanner;
         [SerializeField] TextMeshProUGUI transitionText;
-        [SerializeField] float bannerDuration = 2f;
-        [SerializeField] float fadeSpeed = 2f;
+        [SerializeField] float bannerDuration = 0.3f;
+        [SerializeField] float fadeSpeed = 10f;
 
         int _lastIteration = 0;
         CanvasGroup _bannerCanvasGroup;
@@ -62,7 +62,7 @@ namespace GeniesGambit.UI
 
             // Add background image
             Image bgImage = transitionBanner.AddComponent<Image>();
-            bgImage.color = new Color(0, 0, 0, 0.8f);
+            bgImage.color = new Color(0.55f, 0.4f, 0.15f, 0.75f);
 
             // Add canvas group for fading
             _bannerCanvasGroup = transitionBanner.AddComponent<CanvasGroup>();
@@ -185,11 +185,11 @@ namespace GeniesGambit.UI
             {
                 if (_isRewindBanner)
                 {
-                    bgImage.color = new Color(0f, 0.3f, 0.5f, 0.8f);
+                    bgImage.color = new Color(0.2f, 0.55f, 0.75f, 0.75f);
                 }
                 else
                 {
-                    bgImage.color = new Color(0, 0, 0, 0.8f);
+                    bgImage.color = new Color(0.55f, 0.4f, 0.15f, 0.75f);
                 }
             }
 

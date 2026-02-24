@@ -51,13 +51,17 @@ namespace GeniesGambit.Player
 
             _startPosition = transform.position;
 
-            if (_playerInput != null)
+            if (_playerInput != null && _playerInput.actions != null)
             {
-                _moveAction = _playerInput.actions["Move"];
-                _jumpAction = _playerInput.actions["Jump"];
+                _moveAction = _playerInput.actions.FindAction("Move");
+                _jumpAction = _playerInput.actions.FindAction("Jump");
 
+                if (_moveAction != null) _moveAction.Enable();
                 if (_jumpAction != null)
+                {
+                    _jumpAction.Enable();
                     _jumpAction.performed += OnJumpPerformed;
+                }
             }
         }
 
@@ -188,45 +192,36 @@ namespace GeniesGambit.Player
 
             if (next == GameState.HeroTurn)
             {
-                // Always re-initialize input actions when entering HeroTurn
-                // This fixes issues where input references become stale after state changes
-                var playerInput = GetComponent<PlayerInput>();
-                if (playerInput != null)
+                if (_playerInput != null && _playerInput.actions != null)
                 {
-                    // Make sure PlayerInput is enabled
-                    if (!playerInput.enabled)
-                    {
-                        playerInput.enabled = true;
-                        Debug.Log("[Player] PlayerInput was disabled, re-enabling");
-                    }
-
-                    // Unsubscribe old handler if exists (prevent double subscription)
+                    // Unsubscribe old handler (prevent double subscription)
                     if (_jumpAction != null)
                         _jumpAction.performed -= OnJumpPerformed;
 
-                    // Get fresh references to input actions
-                    _moveAction = playerInput.actions["Move"];
-                    _jumpAction = playerInput.actions["Jump"];
+                    // Get fresh references using safe FindAction
+                    _moveAction = _playerInput.actions.FindAction("Move");
+                    _jumpAction = _playerInput.actions.FindAction("Jump");
 
+                    // Explicitly enable — FindAction does NOT auto-enable the action map
+                    if (_moveAction != null) _moveAction.Enable();
                     if (_jumpAction != null)
+                    {
+                        _jumpAction.Enable();
                         _jumpAction.performed += OnJumpPerformed;
+                    }
 
-                    // Force re-enable by toggling off/on to reclaim devices
-                    playerInput.enabled = false;
-                    playerInput.enabled = true;
-                    playerInput.ActivateInput();
+                    // Re-activate input without toggling enabled (toggling causes OnDisable/OnEnable)
+                    _playerInput.ActivateInput();
 
-                    Debug.Log($"[Player] Input re-initialized (toggled). MoveAction: {_moveAction != null}, JumpAction: {_jumpAction != null}");
+                    Debug.Log($"[Player] Input re-activated. MoveAction: {_moveAction != null}, JumpAction: {_jumpAction != null}");
                 }
                 else
                 {
-                    Debug.LogError("[Player] NO PlayerInput component found!");
+                    Debug.LogWarning("[Player] PlayerInput or actions is null during HeroTurn!");
                 }
 
                 if (old == GameState.GenieWishScreen)
-                {
                     RespawnAtStart();
-                }
             }
 
             if (!_active) _rb.linearVelocity = Vector2.zero;
@@ -241,7 +236,7 @@ namespace GeniesGambit.Player
         {
             transform.position = _startPosition;
             _rb.linearVelocity = Vector2.zero;
-            _horizontal = -1;
+            _horizontal = 0f;
             _jumpPressed = false;
             _weightSlowdown = 0f;
             KeyCollectible.ResetKey();

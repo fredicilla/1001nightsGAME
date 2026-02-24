@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 30b05a7846a78bd499c81319d386b274, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GeniesGambit.Level.CoinSpawner
-  coinPrefab: {fileID: 6301001913535702583, guid: ed9787b25c73db6459911893abaaff4f, type: 3}
+  coinPrefab: {fileID: 6301001913535702583, guid: c3ec07701b09bae4b989aefd57dc0185, type: 3}
   coinsPerBatch: 8
   targetCoinsToCollect: 8
   spawnAreaMin: {x: -7, y: 7}

@@ -157,6 +157,16 @@ namespace GeniesGambit.Genie
                     new Vector3( 1.5f, -0.5f, 0)   // Platform1 tile 6 from left (cell x=1, y=-1)
                 },
 
+                // FallingCoins – scattered across main platforms
+                WishType.FallingCoins => new List<Vector3>
+                {
+                    new Vector3(-3f, 2.93f, 0),   // Platform2 left
+                    new Vector3( 0f, 2.93f, 0),   // Platform2 center
+                    new Vector3( 3f, 2.93f, 0),   // Platform2 right
+                    new Vector3(-2f, 0.68f, 0),   // Platform1 left
+                    new Vector3( 2f, 0.68f, 0),   // Platform1 right
+                },
+
                 _ => new List<Vector3>()
             };
         }

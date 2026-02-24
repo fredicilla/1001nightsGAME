@@ -13,7 +13,7 @@ namespace GeniesGambit.Enemies
     public class ChasingMonster : MonoBehaviour
     {
         [Header("Chase Settings")]
-        [SerializeField] float chaseSpeed = 3f;
+        [SerializeField] float chaseSpeed = 0.25f;
         [SerializeField] float detectionRange = 15f;
         [SerializeField] float catchDistance = 0.5f;
         [SerializeField] float playerMoveSpeed = 4f;
