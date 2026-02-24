@@ -53,6 +53,13 @@ namespace GeniesGambit.Core
             }
 
             AudioManager.Play(AudioManager.SoundID.NewRound);
+            // Pause game and show overlay at the start of each round
+            if (GeniesGambit.Core.GameStartPauseManager.Instance != null)
+                GeniesGambit.Core.GameStartPauseManager.Instance.PauseGameAndShowOverlay();
+
+            // Spawn key if key mechanic is active
+            if (GeniesGambit.Level.KeyMechanicManager.IsKeyMechanicActive && GeniesGambit.Level.KeySpawner.Instance != null)
+                GeniesGambit.Level.KeySpawner.Instance.SpawnKey();
             if (IterationManager.Instance != null)
             {
                 int iterationCount = GetIterationsForCurrentRound();
@@ -62,6 +69,10 @@ namespace GeniesGambit.Core
             {
                 Debug.LogError("[RoundManager] IterationManager not found!");
             }
+
+            // Reapply all previously chosen wish effects so they carry into every new round
+            if (GeniesGambit.Genie.GenieManager.Instance != null)
+                GeniesGambit.Genie.GenieManager.Instance.ReapplyPersistentWishEffects();
         }
 
         public void OnIterationCycleComplete()

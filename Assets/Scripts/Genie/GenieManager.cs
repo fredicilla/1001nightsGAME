@@ -199,6 +199,33 @@ namespace GeniesGambit.Genie
             return remaining;
         }
 
+        /// <summary>
+        /// Reapplies all persistent wish effects (tiles, mechanics) at the start of each
+        /// new round so previously chosen wishes carry forward. Does NOT re-spawn prefabs
+        /// since those already exist in the scene.
+        /// </summary>
+        public void ReapplyPersistentWishEffects()
+        {
+            foreach (var wish in _allChosenWishesEver)
+            {
+                if (wish.wishType == WishType.Key)
+                {
+                    // Re-activate key mechanic — refreshes gate states automatically
+                    KeyWishEffect.ApplyKeyWish();
+                    continue;
+                }
+
+                // Reapply tile-based wishes (idempotent — just sets tiles again)
+                if (wish.swapsTiles)
+                {
+                    var cells = GetWishCells(wish.wishType);
+                    wishTileMap.ApplyWish(wish.wishType, cells);
+                }
+
+                // Intentionally skip spawnPrefab — spawned objects persist in the scene
+            }
+        }
+
         public void ResetAllWishes()
         {
             _allChosenWishesEver.Clear();

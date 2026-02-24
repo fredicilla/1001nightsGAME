@@ -91,6 +91,14 @@ namespace GeniesGambit.Core
             _iteration4Enemy2ShooterRecording = null;
             ClearIterationHistory();
 
+            // Pause game and show overlay at the start of each iteration cycle
+            if (GeniesGambit.Core.GameStartPauseManager.Instance != null)
+                GeniesGambit.Core.GameStartPauseManager.Instance.PauseGameAndShowOverlay();
+
+            // Spawn key if key mechanic is active
+            if (GeniesGambit.Level.KeyMechanicManager.IsKeyMechanicActive && GeniesGambit.Level.KeySpawner.Instance != null)
+                GeniesGambit.Level.KeySpawner.Instance.SpawnKey();
+
             StartIteration1();
         }
 
@@ -1198,6 +1206,7 @@ namespace GeniesGambit.Core
         void RestartIteration2()
         {
             Debug.Log("[IterationManager] === RESTARTING ITERATION 2 ===");
+            GeniesGambit.Level.KeyCollectible.ResetKey();
 
             // Stop the timer first
             if (_iterationTimer != null)
@@ -1237,6 +1246,7 @@ namespace GeniesGambit.Core
         void RestartIteration3()
         {
             Debug.Log("[IterationManager] === RESTARTING ITERATION 3 ===");
+            GeniesGambit.Level.KeyCollectible.ResetKey();
 
             // Stop the timer first
             if (_iterationTimer != null)
@@ -1995,6 +2005,7 @@ namespace GeniesGambit.Core
         void RestartIteration4()
         {
             Debug.Log("[IterationManager] === RESTARTING ITERATION 4 ===");
+            GeniesGambit.Level.KeyCollectible.ResetKey();
 
             // Stop the timer first
             if (_iterationTimer != null)
@@ -2235,6 +2246,7 @@ namespace GeniesGambit.Core
         void RestartIteration5()
         {
             Debug.Log("[IterationManager] === RESTARTING ITERATION 5 ===");
+            GeniesGambit.Level.KeyCollectible.ResetKey();
 
             // Stop the timer first
             if (_iterationTimer != null)

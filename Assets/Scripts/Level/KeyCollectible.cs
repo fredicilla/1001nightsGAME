@@ -75,6 +75,11 @@ namespace GeniesGambit.Level
                     _instance.gameObject.SetActive(false);
                 }
             }
+
+            // Refresh all gates to their correct state (closed if key mechanic active)
+            var gates = UnityEngine.Object.FindObjectsByType<GateController>(FindObjectsSortMode.None);
+            foreach (var gate in gates)
+                gate.RefreshGateState();
         }
     }
 }
