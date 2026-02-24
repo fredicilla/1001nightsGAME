@@ -80,8 +80,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 184c61d25320a6f4e8b6617c912e3cff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KeyCollectable
-  rotationSpeed: 50
-  autoRotate: 1
+  bobHeight: 0.15
+  bobSpeed: 2
+  glowColor: {r: 9.734288, g: 8.562098, b: 0, a: 1}
+  pulseSpeed: 2
+  minIntensity: 1
+  maxIntensity: 3
   collectEffect: {fileID: 0}
   collectSound: {fileID: 0}
 --- !u!135 &3773576112042582435
