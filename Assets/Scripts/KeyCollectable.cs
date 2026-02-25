@@ -3,46 +3,21 @@ using UnityEngine;
 
 public class KeyCollectable : MonoBehaviour
 {
-    [Header("Bob Settings")]
-    public float bobHeight = 0.2f;
-    public float bobSpeed = 2f;
-
-    [Header("Glow Settings")]
-    public float pulseSpeed = 2f;
-    public float minBrightness = 0.6f;
-    public float maxBrightness = 1.4f;
+    [Header("Settings")]
+    public float rotationSpeed = 50f;
+    public bool autoRotate = true;
 
     [Header("Effects")]
     public GameObject collectEffect;
     public AudioClip collectSound;
 
     private bool isCollected = false;
-    private Vector3 startPosition;
-    private SpriteRenderer sr;
-    private Color originalColor;
-
-    private void Start()
-    {
-        startPosition = transform.position;
-        sr = GetComponent<SpriteRenderer>();
-        if (sr != null)
-            originalColor = sr.color;
-    }
 
     private void Update()
     {
-        if (isCollected) return;
-
-        // Bob up and down
-        float newY = startPosition.y + Mathf.Sin(Time.time * bobSpeed) * bobHeight;
-        transform.position = new Vector3(transform.position.x, newY, transform.position.z);
-
-        // Glow: pulse the sprite brightness using its own original color
-        if (sr != null)
+        if (autoRotate)
         {
-            float t = (Mathf.Sin(Time.time * pulseSpeed) + 1f) / 2f;
-            float brightness = Mathf.Lerp(minBrightness, maxBrightness, t);
-            sr.color = originalColor * brightness;
+            transform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime);
         }
     }
 
@@ -52,16 +27,8 @@ public class KeyCollectable : MonoBehaviour
 
         if (other.CompareTag("Player"))
         {
-            CollectKey();
-        }
-    }
+            Debug.Log($"🔑 Key collected by: {other.name}");
 
-    private void OnTriggerEnter2D(Collider2D other)
-    {
-        if (isCollected) return;
-
-        if (other.CompareTag("Player"))
-        {
             CollectKey();
         }
     }
@@ -82,10 +49,14 @@ public class KeyCollectable : MonoBehaviour
         }
 
         if (collectEffect != null)
+        {
             Instantiate(collectEffect, transform.position, Quaternion.identity);
+        }
 
         if (collectSound != null)
+        {
             AudioSource.PlayClipAtPoint(collectSound, transform.position);
+        }
 
         Destroy(gameObject, 0.1f);
     }
