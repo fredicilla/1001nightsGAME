@@ -44,7 +44,7 @@ public class MonsterAI : MonoBehaviour
         
         if (genieBoss == null)
         {
-            genieBoss = FindObjectOfType<GenieBossController>();
+            genieBoss = FindFirstObjectByType<GenieBossController>();
         }
         
         healthSystem = GetComponent<HealthSystem>();
@@ -121,6 +121,11 @@ public class MonsterAI : MonoBehaviour
         
         if (collision.gameObject.CompareTag("Player"))
         {
+            if (animator != null)
+            {
+                animator.SetTrigger("attack");
+            }
+            
             HealthSystem playerHealth = collision.gameObject.GetComponent<HealthSystem>();
             if (playerHealth != null)
             {
@@ -146,11 +151,17 @@ public class MonsterAI : MonoBehaviour
         isDead = true;
         Debug.Log($"☠️ Monster {gameObject.name} died!");
         
+        if (animator != null)
+        {
+            animator.SetTrigger("die");
+            animator.SetBool("isDead", true);
+        }
+        
         if (genieBoss != null)
         {
             genieBoss.OnMonsterKilled();
         }
         
-        Destroy(gameObject, 0.5f);
+        Destroy(gameObject, 3f);
     }
 }

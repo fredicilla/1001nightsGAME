@@ -24,6 +24,17 @@ public class GenieBossController : MonoBehaviour
     public float flyHeight = 5f;
     public float flySpeed = 3f;
     public float circleRadius = 8f;
+    public bool followPlayer = true;
+    public float followDistance = 10f;
+    
+    [Header("Ground Walking Settings")]
+    public bool canWalkOnGround = true;
+    public float walkSpeed = 2f;
+    public float flyDuration = 15f;
+    public float walkDuration = 10f;
+    
+    private bool isFlying = true;
+    private float stateTimer = 0f;
     
     [Header("Attack Settings")]
     public float projectileSpeed = 8f;
@@ -32,11 +43,23 @@ public class GenieBossController : MonoBehaviour
     public float autoShootInterval = 3f;
     public int autoShootCount = 5;
     
+    [Header("Monster Spawn Settings")]
+    public int monstersPerWave = 5;
+    public float monsterSpawnInterval = 20f;
+    
+    [Header("Animation Settings")]
+    public float introDuration = 4f;
+    public float deathAnimationDuration = 3f;
+    
+    [Header("Cinemachine Camera References")]
+    public GameObject genieIntroCamera;
+    public GameObject playerCamera;
+    
     private int aliveMonsters = 0;
     private float circleAngle = 0f;
     private HealthSystem healthSystem;
-    private Animator animator;
-    private Animation animationComponent;
+    private Animator genieAnimator;
+    private bool hasPlayedIntro = false;
     
     private void Start()
     {
@@ -45,19 +68,122 @@ public class GenieBossController : MonoBehaviour
         isVulnerable = true;
         healthSystem = GetComponent<HealthSystem>();
         
-        animator = GetComponentInChildren<Animator>();
-        animationComponent = GetComponentInChildren<Animation>();
+        genieAnimator = GetComponent<Animator>();
+        
+        if (genieAnimator == null)
+        {
+            Debug.LogError("⚠️ Animator component not found on Genie!");
+            genieAnimator = GetComponentInChildren<Animator>();
+            if (genieAnimator != null)
+            {
+                Debug.Log("✅ Found Animator in children instead");
+            }
+        }
+        else
+        {
+            Debug.Log("✅ Genie Animator found! Controller: " + (genieAnimator.runtimeAnimatorController != null ? genieAnimator.runtimeAnimatorController.name : "NULL"));
+        }
         
         if (healthSystem != null)
         {
             healthSystem.maxHealth = maxHealth;
         }
         
-        Debug.Log("🎮 Boss Fight Started! Genie is vulnerable from the start!");
+        Debug.Log("🎮 Boss Fight Started!");
         
-        SpawnMonsters(15);
+        SpawnMonsters(monstersPerWave);
+        
+        isFlying = true;
+        stateTimer = flyDuration;
+        
+        if (!hasPlayedIntro)
+        {
+            Debug.Log("🎬 Starting intro sequence...");
+            StartCoroutine(PlayIntroSequence());
+        }
+        else
+        {
+            Debug.Log("⏭️ Skipping intro (already played)");
+            StartCoroutine(AutoShootLoop());
+            StartCoroutine(ContinuousMonsterSpawnLoop());
+        }
+    }
+    
+    IEnumerator PlayIntroSequence()
+    {
+        hasPlayedIntro = true;
+        
+        Debug.Log("🎬 Playing intro sequence...");
+        
+        if (genieIntroCamera != null)
+        {
+            Debug.Log("📹 Activating Genie Intro Camera");
+            genieIntroCamera.SetActive(true);
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ Genie Intro Camera is NULL - no camera zoom will happen");
+        }
+        
+        if (playerCamera != null)
+        {
+            Debug.Log("📹 Deactivating Player Camera");
+            playerCamera.SetActive(false);
+        }
+        
+        if (genieAnimator != null)
+        {
+            Debug.Log("🎭 Triggering 'Intro' animation on Genie");
+            genieAnimator.SetTrigger("Intro");
+            
+            // تحقق من وجود الـ parameter
+            if (genieAnimator.parameters.Length > 0)
+            {
+                Debug.Log($"📋 Animator has {genieAnimator.parameters.Length} parameters");
+                bool hasIntroParam = false;
+                foreach (var param in genieAnimator.parameters)
+                {
+                    if (param.name == "Intro")
+                    {
+                        hasIntroParam = true;
+                        Debug.Log("✅ Found 'Intro' parameter in Animator!");
+                        break;
+                    }
+                }
+                if (!hasIntroParam)
+                {
+                    Debug.LogError("❌ 'Intro' parameter NOT FOUND in Animator! Please add it.");
+                }
+            }
+            else
+            {
+                Debug.LogError("❌ Animator has NO parameters! Please add them in Animator Controller.");
+            }
+        }
+        else
+        {
+            Debug.LogError("❌ genieAnimator is NULL! Cannot play intro animation!");
+        }
+        
+        Debug.Log($"⏱️ Waiting {introDuration} seconds for intro to complete...");
+        yield return new WaitForSeconds(introDuration);
+        
+        if (genieIntroCamera != null)
+        {
+            Debug.Log("📹 Deactivating Genie Intro Camera");
+            genieIntroCamera.SetActive(false);
+        }
+        
+        if (playerCamera != null)
+        {
+            Debug.Log("📹 Activating Player Camera");
+            playerCamera.SetActive(true);
+        }
+        
+        Debug.Log("✅ Intro complete! Starting battle...");
         
         StartCoroutine(AutoShootLoop());
+        StartCoroutine(ContinuousMonsterSpawnLoop());
     }
     
     IEnumerator MainBattleLoop()
@@ -91,13 +217,9 @@ public class GenieBossController : MonoBehaviour
                 GameObject player = GameObject.FindGameObjectWithTag("Player");
                 if (player != null && genieProjectilePrefab != null && shootPoint != null)
                 {
-                    if (animator != null)
+                    if (genieAnimator != null)
                     {
-                        animator.SetTrigger("Shoot");
-                    }
-                    else if (animationComponent != null && animationComponent.GetClip("Right Hook") != null)
-                    {
-                        animationComponent.Play("Right Hook");
+                        genieAnimator.SetTrigger("Shoot");
                     }
                     
                     Vector3 targetPosition = player.transform.position;
@@ -116,6 +238,20 @@ public class GenieBossController : MonoBehaviour
             }
             
             yield return new WaitForSeconds(autoShootInterval);
+        }
+    }
+    
+    IEnumerator ContinuousMonsterSpawnLoop()
+    {
+        yield return new WaitForSeconds(monsterSpawnInterval);
+        
+        while (currentHealth > 0)
+        {
+            Debug.Log($"👹 Spawning new wave of {monstersPerWave} monsters (Every {monsterSpawnInterval} seconds)");
+            
+            SpawnMonsters(monstersPerWave);
+            
+            yield return new WaitForSeconds(monsterSpawnInterval);
         }
     }
     
@@ -189,7 +325,104 @@ public class GenieBossController : MonoBehaviour
     {
         if (currentHealth > 0)
         {
-            FlyInCircle();
+            if (canWalkOnGround)
+            {
+                stateTimer -= Time.deltaTime;
+                
+                if (stateTimer <= 0f)
+                {
+                    isFlying = !isFlying;
+                    
+                    if (isFlying)
+                    {
+                        stateTimer = flyDuration;
+                        Debug.Log("✈️ Genie is now FLYING for " + flyDuration + " seconds!");
+                    }
+                    else
+                    {
+                        stateTimer = walkDuration;
+                        Debug.Log("🚶 Genie is now WALKING on ground for " + walkDuration + " seconds!");
+                    }
+                }
+            }
+            
+            if (followPlayer)
+            {
+                if (isFlying)
+                {
+                    FlyAroundPlayer();
+                }
+                else
+                {
+                    WalkOnGround();
+                }
+            }
+            else
+            {
+                FlyInCircle();
+            }
+        }
+    }
+    
+    void FlyAroundPlayer()
+    {
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null) return;
+        
+        Vector3 playerPos = player.transform.position;
+        
+        circleAngle += flySpeed * Time.deltaTime * 0.3f;
+        
+        float x = playerPos.x + Mathf.Cos(circleAngle) * followDistance;
+        float z = playerPos.z + Mathf.Sin(circleAngle) * followDistance;
+        float y = playerPos.y + flyHeight;
+        
+        Vector3 targetPosition = new Vector3(x, y, z);
+        
+        transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * flySpeed);
+        
+        Vector3 lookDirection = playerPos - transform.position;
+        lookDirection.y = 0;
+        if (lookDirection != Vector3.zero)
+        {
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDirection), Time.deltaTime * 5f);
+        }
+        
+        if (genieAnimator != null)
+        {
+            genieAnimator.SetBool("IsGrounded", false);
+        }
+    }
+    
+    void WalkOnGround()
+    {
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null) return;
+        
+        Vector3 playerPos = player.transform.position;
+        
+        circleAngle += walkSpeed * Time.deltaTime * 0.2f;
+        
+        float x = playerPos.x + Mathf.Cos(circleAngle) * followDistance;
+        float z = playerPos.z + Mathf.Sin(circleAngle) * followDistance;
+        
+        Vector3 targetPosition = new Vector3(x, 1f, z);
+        
+        transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * walkSpeed);
+        
+        Vector3 lookDirection = playerPos - transform.position;
+        lookDirection.y = 0;
+        if (lookDirection != Vector3.zero)
+        {
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDirection), Time.deltaTime * 4f);
+        }
+        
+        if (genieAnimator != null)
+        {
+            genieAnimator.SetBool("IsGrounded", true);
+            
+            int randomAnimIndex = Random.Range(0, 3);
+            genieAnimator.SetInteger("GroundAnimIndex", randomAnimIndex);
         }
     }
     
@@ -220,6 +453,11 @@ public class GenieBossController : MonoBehaviour
         currentHealth = 0;
         
         StopAllCoroutines();
+        
+        if (genieAnimator != null)
+        {
+            genieAnimator.SetTrigger("Die");
+        }
         
         GameObject[] monsters = GameObject.FindGameObjectsWithTag("Monster");
         Debug.Log($"💥 Found {monsters.Length} monsters to destroy");
@@ -271,7 +509,7 @@ public class GenieBossController : MonoBehaviour
             bfm.OnGenieDefeated();
         }
         
-        Destroy(gameObject, 0.5f);
+        Destroy(gameObject, deathAnimationDuration);
     }
     
     public void TakeDamage()
@@ -296,19 +534,14 @@ public class GenieBossController : MonoBehaviour
         
         for (int i = 0; i < count; i++)
         {
-            if (animator != null)
+            if (genieAnimator != null)
             {
-                Debug.Log($"🎬 Triggering Shoot animation (animator found)");
-                animator.SetTrigger("Shoot");
-            }
-            else if (animationComponent != null && animationComponent.GetClip("Right Hook") != null)
-            {
-                Debug.Log($"🎬 Playing Right Hook animation (animation component found)");
-                animationComponent.Play("Right Hook");
+                Debug.Log($"🎬 Triggering Shoot animation");
+                genieAnimator.SetTrigger("Shoot");
             }
             else
             {
-                Debug.LogWarning("⚠️ No Animator or Animation component found on Genie or children!");
+                Debug.LogWarning("⚠️ No Animator component found on Genie or children!");
             }
             
             GameObject player = GameObject.FindGameObjectWithTag("Player");
@@ -337,8 +570,6 @@ public class GenieBossController : MonoBehaviour
     {
         if (monsterPrefab == null) return;
         
-        aliveMonsters = count;
-        
         for (int i = 0; i < count; i++)
         {
             Vector3 spawnPos = GetRandomSpawnPosition();
@@ -352,7 +583,9 @@ public class GenieBossController : MonoBehaviour
             }
             ai.genieBoss = this;
             
-            Debug.Log($"👹 Spawned monster {i + 1}/{count} at {spawnPos}");
+            aliveMonsters++;
+            
+            Debug.Log($"👹 Spawned monster {i + 1}/{count} at {spawnPos}. Total alive: {aliveMonsters}");
         }
     }
     

@@ -64,7 +64,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7718608406006285026}
-  - component: {fileID: 4354094767489995042}
   - component: {fileID: 5106238173110657192}
   - component: {fileID: 6781028244407418761}
   - component: {fileID: 102153134587443052}
@@ -96,29 +95,6 @@ Transform:
   - {fileID: 13858772230318203}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!136 &4354094767489995042
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6486079921926304531}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!54 &5106238173110657192
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -171,7 +147,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HealthSystem
   maxHealth: 3
+  onHealthChanged:
+    m_PersistentCalls:
+      m_Calls: []
   spawnProtectionDuration: 1.5
+  hasSpawnProtection: 1
   deathAnimationDuration: 3
 --- !u!114 &1563199095376091971
 MonoBehaviour:
