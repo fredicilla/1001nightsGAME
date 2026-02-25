@@ -147,14 +147,14 @@ RectTransform:
   m_GameObject: {fileID: 660667831}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 5, y: 5, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 4.1, y: 4.1, z: 0.8199999}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 805664235}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -273.833, y: 59.26}
+  m_AnchoredPosition: {x: -273.833, y: 42.9}
   m_SizeDelta: {x: 51.665, y: 47.936}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &660667833
@@ -226,7 +226,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 0.9467073, b: 0, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -357,14 +357,14 @@ RectTransform:
   m_GameObject: {fileID: 1082634198}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 5, y: 5, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 4.1, y: 4.1, z: 0.8199999}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 805664235}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 233, y: 38.018}
+  m_AnchoredPosition: {x: 233, y: 42.9}
   m_SizeDelta: {x: 53.923, y: 47.216}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1082634200
@@ -436,7 +436,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 0.9467073, b: 0, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -473,6 +473,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ecc98ecca04fdc14c85fe24019637f1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SceneManagment
+  videoPath: intro.mp4
+  gameSceneName: SampleScene
 --- !u!1 &1108939921
 GameObject:
   m_ObjectHideFlags: 0
@@ -820,6 +822,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ecc98ecca04fdc14c85fe24019637f1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuController
+  videoPath: intro.mp4
+  gameSceneName: SampleScene
 --- !u!4 &2121975708
 Transform:
   m_ObjectHideFlags: 0
