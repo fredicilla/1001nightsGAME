@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Video;
 using UnityEngine.UI;
@@ -20,8 +20,7 @@ public class MenuController : MonoBehaviour
     // Function for your "Start" button
     public void StartGame()
     {
-        if (_isPlayingVideo) return;
-        StartCoroutine(PlayIntroVideo());
+        SceneManager.LoadScene("IntroVideo");
     }
 
     bool SkipInputPressed()

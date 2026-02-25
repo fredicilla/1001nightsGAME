@@ -25,6 +25,12 @@ namespace GeniesGambit.Combat
             {
                 _collider.isTrigger = true;
             }
+
+            // Force Continuous collision detection to prevent tunneling
+            if (_rb != null)
+            {
+                _rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+            }
         }
 
         void Update()
@@ -68,21 +74,22 @@ namespace GeniesGambit.Combat
 
             if (distance > 0.01f)
             {
-                // Cast a ray from previous position to current position
-                RaycastHit2D[] hits = Physics2D.RaycastAll(_previousPosition, direction.normalized, distance, allLayers);
+                // Use CircleCast for better detection instead of simple Raycast
+                float colliderRadius = _collider != null ? (_collider as CircleCollider2D)?.radius ?? 0.15f : 0.15f;
+                RaycastHit2D[] hits = Physics2D.CircleCastAll(_previousPosition, colliderRadius, direction.normalized, distance, allLayers);
                 foreach (var hit in hits)
                 {
                     if (hit.collider != _collider && hit.collider.CompareTag(_targetTag))
                     {
-                        Debug.Log($"[Projectile] RAYCAST hit {hit.collider.name} (tag: {hit.collider.tag})!");
+                        Debug.Log($"[Projectile] CIRCLECAST hit {hit.collider.name} (tag: {hit.collider.tag})!");
                         HandleCollision(hit.collider);
                         return;
                     }
                 }
             }
 
-            // Also check overlap at current position as fallback
-            Collider2D[] overlaps = Physics2D.OverlapCircleAll(transform.position, 0.8f, allLayers);
+            // Also check overlap at current position as fallback (increased radius from 0.8 to 1.0)
+            Collider2D[] overlaps = Physics2D.OverlapCircleAll(transform.position, 1.0f, allLayers);
             foreach (var hit in overlaps)
             {
                 if (hit != _collider && hit.CompareTag(_targetTag))
@@ -131,6 +138,12 @@ namespace GeniesGambit.Combat
             HandleCollision(collision);
         }
 
+        void OnTriggerStay2D(Collider2D collision)
+        {
+            // Additional fallback for cases where OnTriggerEnter2D misses
+            HandleCollision(collision);
+        }
+
         void OnCollisionEnter2D(Collision2D collision)
         {
             // Also handle non-trigger collisions
@@ -164,6 +177,44 @@ namespace GeniesGambit.Combat
             else
             {
                 Debug.Log($"[Projectile] Collision ignored - tag mismatch (got '{collision.tag}', want '{_targetTag}')");
+            }
+        }
+
+        void OnDrawGizmos()
+        {
+            if (!Application.isPlaying) return;
+
+            // Draw the movement path
+            if (_previousPosition != Vector3.zero)
+            {
+                Gizmos.color = Color.red;
+                Gizmos.DrawLine(_previousPosition, transform.position);
+            }
+
+            // Draw the overlap circle
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(transform.position, 1.0f);
+
+            // Draw the collider radius
+            if (_collider != null && _collider is CircleCollider2D circleCollider)
+            {
+                Gizmos.color = Color.cyan;
+                Gizmos.DrawWireSphere(transform.position, circleCollider.radius);
+            }
+
+            // Draw line to target if nearby
+            if (!string.IsNullOrEmpty(_targetTag))
+            {
+                var target = GameObject.FindWithTag(_targetTag);
+                if (target != null)
+                {
+                    float dist = Vector3.Distance(transform.position, target.transform.position);
+                    if (dist < 3f)
+                    {
+                        Gizmos.color = Color.green;
+                        Gizmos.DrawLine(transform.position, target.transform.position);
+                    }
+                }
             }
         }
     }

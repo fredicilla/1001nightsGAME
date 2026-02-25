@@ -64,6 +64,7 @@ namespace GeniesGambit.Core
         [SerializeField] Transform enemy2SpawnPoint;
 
         [Header("Boss Scene")]
+        [SerializeField] string bossIntroVideoSceneName = "BossIntroVideo";
         [SerializeField] string bossSceneName = "BossFight";
         [SerializeField] float bossSceneDelay = 3f;
 
@@ -871,8 +872,8 @@ namespace GeniesGambit.Core
 
         void LoadBossScene()
         {
-            Debug.Log($"[IterationManager] Loading {bossSceneName}...");
-            SceneManager.LoadScene(bossSceneName);
+            Debug.Log($"[IterationManager] Loading Boss Intro Video...");
+            SceneManager.LoadScene(bossIntroVideoSceneName);
         }
 
         // ─────────────────────────────────────────────────────────────────────
