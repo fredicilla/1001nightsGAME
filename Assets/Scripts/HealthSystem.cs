@@ -48,7 +48,7 @@ public class HealthSystem : MonoBehaviour
 
     private void Update()
     {
-        if (hasSpawnProtection && Time.time - spawnTime > spawnProtectionDuration)
+        if (hasSpawnProtection && Time.time - spawnTime >= spawnProtectionDuration)
         {
             hasSpawnProtection = false;
             Debug.Log($"🛡️ {gameObject.name} spawn protection ended!");
@@ -58,6 +58,15 @@ public class HealthSystem : MonoBehaviour
     public void TakeDamage(int damage, Vector3 damageSourcePosition)
     {
         if (isDead) return;
+        
+        GenieBossController genieBoss = GetComponent<GenieBossController>();
+        if (genieBoss != null)
+        {
+            Debug.Log("🎯 HealthSystem detected GenieBossController - delegating damage to GenieBossController");
+            currentHealth -= damage;
+            genieBoss.TakeDamage();
+            return;
+        }
 
         currentHealth -= damage;
         Debug.Log($"💔 {gameObject.name} took {damage} damage! HP: {currentHealth}/{maxHealth}");
@@ -135,7 +144,7 @@ public class HealthSystem : MonoBehaviour
         GenieBossController genieBoss = GetComponent<GenieBossController>();
         if (genieBoss != null)
         {
-            Debug.Log("🎯 HealthSystem detected GenieBossController - delegating to GenieBossController.Die()");
+            Debug.Log("🎯 HealthSystem detected GenieBossController - GenieBossController will handle death");
             return;
         }
 

@@ -1,6 +1,14 @@
 using System.Collections;
 using UnityEngine;
 
+public enum GenieBehaviorState
+{
+    CirclingPlayer,
+    ChasingPlayer,
+    IdleWandering,
+    Shooting
+}
+
 public class GenieBossController : MonoBehaviour
 {
     [Header("Boss Settings")]
@@ -21,17 +29,32 @@ public class GenieBossController : MonoBehaviour
     public Transform arenaCenter;
     
     [Header("Flying Settings")]
-    public float flyHeight = 5f;
+    public float flyHeight = 0.5f;
     public float flySpeed = 3f;
     public float circleRadius = 8f;
     public bool followPlayer = true;
-    public float followDistance = 10f;
+    public float followDistance = 8f;
+    public float halfCircleDuration = 2f;
+    public float minDistanceFromPlayer = 6f;
+    
+    private bool isMovingClockwise = true;
+    private float movementTimer = 0f;
     
     [Header("Ground Walking Settings")]
     public bool canWalkOnGround = true;
     public float walkSpeed = 2f;
     public float flyDuration = 15f;
     public float walkDuration = 10f;
+    
+    [Header("AI Behavior Settings")]
+    public float behaviorSwitchMinTime = 3f;
+    public float behaviorSwitchMaxTime = 7f;
+    public float chaseDistance = 12f;
+    public float wanderRadius = 8f;
+    
+    private GenieBehaviorState currentBehaviorState = GenieBehaviorState.CirclingPlayer;
+    private float behaviorTimer = 0f;
+    private Vector3 wanderTarget;
     
     private bool isFlying = true;
     private float stateTimer = 0f;
@@ -40,8 +63,8 @@ public class GenieBossController : MonoBehaviour
     public float projectileSpeed = 8f;
     public float timeBetweenShots = 1f;
     public float vulnerableWindowDuration = 3f;
-    public float autoShootInterval = 3f;
-    public int autoShootCount = 5;
+    public float autoShootInterval = 10f;
+    public int autoShootCount = 1;
     
     [Header("Monster Spawn Settings")]
     public int monstersPerWave = 5;
@@ -95,6 +118,15 @@ public class GenieBossController : MonoBehaviour
         
         isFlying = true;
         stateTimer = flyDuration;
+        
+        currentBehaviorState = GenieBehaviorState.CirclingPlayer;
+        behaviorTimer = Random.Range(behaviorSwitchMinTime, behaviorSwitchMaxTime);
+        
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null)
+        {
+            wanderTarget = GetRandomPositionNearPlayer(player.transform.position);
+        }
         
         if (!hasPlayedIntro)
         {
@@ -325,43 +357,163 @@ public class GenieBossController : MonoBehaviour
     {
         if (currentHealth > 0)
         {
-            if (canWalkOnGround)
+            behaviorTimer -= Time.deltaTime;
+            
+            if (behaviorTimer <= 0f)
             {
-                stateTimer -= Time.deltaTime;
-                
-                if (stateTimer <= 0f)
-                {
-                    isFlying = !isFlying;
+                SwitchBehavior();
+            }
+            
+            switch (currentBehaviorState)
+            {
+                case GenieBehaviorState.CirclingPlayer:
+                    if (canWalkOnGround)
+                    {
+                        stateTimer -= Time.deltaTime;
+                        
+                        if (stateTimer <= 0f)
+                        {
+                            isFlying = !isFlying;
+                            
+                            if (isFlying)
+                            {
+                                stateTimer = flyDuration;
+                                Debug.Log("✈️ Genie is now FLYING!");
+                            }
+                            else
+                            {
+                                stateTimer = walkDuration;
+                                Debug.Log("🚶 Genie is now WALKING!");
+                            }
+                        }
+                    }
                     
                     if (isFlying)
                     {
-                        stateTimer = flyDuration;
-                        Debug.Log("✈️ Genie is now FLYING for " + flyDuration + " seconds!");
+                        FlyAroundPlayer();
                     }
                     else
                     {
-                        stateTimer = walkDuration;
-                        Debug.Log("🚶 Genie is now WALKING on ground for " + walkDuration + " seconds!");
+                        WalkOnGround();
                     }
-                }
-            }
-            
-            if (followPlayer)
-            {
-                if (isFlying)
-                {
-                    FlyAroundPlayer();
-                }
-                else
-                {
-                    WalkOnGround();
-                }
-            }
-            else
-            {
-                FlyInCircle();
+                    break;
+                    
+                case GenieBehaviorState.ChasingPlayer:
+                    ChasePlayer();
+                    break;
+                    
+                case GenieBehaviorState.IdleWandering:
+                    WanderAround();
+                    break;
             }
         }
+    }
+    
+    void SwitchBehavior()
+    {
+        int randomBehavior = Random.Range(0, 3);
+        
+        switch (randomBehavior)
+        {
+            case 0:
+                currentBehaviorState = GenieBehaviorState.CirclingPlayer;
+                Debug.Log("🔄 Genie behavior: Circling Player (180° back and forth)");
+                break;
+            case 1:
+                currentBehaviorState = GenieBehaviorState.ChasingPlayer;
+                Debug.Log("🏃 Genie behavior: Chasing Player");
+                break;
+            case 2:
+                currentBehaviorState = GenieBehaviorState.IdleWandering;
+                GameObject player = GameObject.FindGameObjectWithTag("Player");
+                if (player != null)
+                {
+                    wanderTarget = GetRandomPositionNearPlayer(player.transform.position);
+                }
+                Debug.Log("🚶 Genie behavior: Wandering around player");
+                break;
+        }
+        
+        behaviorTimer = Random.Range(behaviorSwitchMinTime, behaviorSwitchMaxTime);
+    }
+    
+    void ChasePlayer()
+    {
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null) return;
+        
+        Vector3 playerPos = player.transform.position;
+        float distance = Vector3.Distance(transform.position, playerPos);
+        
+        if (distance < minDistanceFromPlayer)
+        {
+            Vector3 awayDirection = (transform.position - playerPos).normalized;
+            Vector3 targetPos = new Vector3(
+                playerPos.x + awayDirection.x * minDistanceFromPlayer, 
+                playerPos.y + flyHeight, 
+                playerPos.z + awayDirection.z * minDistanceFromPlayer
+            );
+            transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * flySpeed);
+        }
+        else if (distance > chaseDistance)
+        {
+            Vector3 targetPos = new Vector3(playerPos.x, playerPos.y + flyHeight, playerPos.z);
+            transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * flySpeed * 1.5f);
+        }
+        else
+        {
+            Vector3 targetPos = new Vector3(playerPos.x, playerPos.y + flyHeight, playerPos.z);
+            transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * flySpeed * 0.8f);
+        }
+        
+        Vector3 lookDirection = playerPos - transform.position;
+        lookDirection.y = 0;
+        if (lookDirection != Vector3.zero)
+        {
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDirection), Time.deltaTime * 6f);
+        }
+        
+        if (genieAnimator != null)
+        {
+            genieAnimator.SetBool("IsGrounded", false);
+        }
+    }
+    
+    void WanderAround()
+    {
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null) return;
+        
+        Vector3 targetPos = new Vector3(wanderTarget.x, wanderTarget.y + flyHeight, wanderTarget.z);
+        transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * flySpeed * 0.5f);
+        
+        if (Vector3.Distance(transform.position, targetPos) < 2f)
+        {
+            wanderTarget = GetRandomPositionNearPlayer(player.transform.position);
+        }
+        
+        Vector3 lookDirection = wanderTarget - transform.position;
+        lookDirection.y = 0;
+        if (lookDirection != Vector3.zero)
+        {
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDirection), Time.deltaTime * 3f);
+        }
+        
+        if (genieAnimator != null)
+        {
+            genieAnimator.SetBool("IsGrounded", false);
+        }
+    }
+    
+    Vector3 GetRandomPositionNearPlayer(Vector3 playerPos)
+    {
+        float randomAngle = Random.Range(0f, Mathf.PI * 2f);
+        float randomDistance = Random.Range(wanderRadius * 0.5f, wanderRadius);
+        
+        float x = playerPos.x + Mathf.Cos(randomAngle) * randomDistance;
+        float z = playerPos.z + Mathf.Sin(randomAngle) * randomDistance;
+        
+        return new Vector3(x, playerPos.y, z);
     }
     
     void FlyAroundPlayer()
@@ -371,7 +523,23 @@ public class GenieBossController : MonoBehaviour
         
         Vector3 playerPos = player.transform.position;
         
-        circleAngle += flySpeed * Time.deltaTime * 0.3f;
+        movementTimer += Time.deltaTime;
+        
+        if (movementTimer >= halfCircleDuration)
+        {
+            movementTimer = 0f;
+            isMovingClockwise = !isMovingClockwise;
+        }
+        
+        float angleSpeed = (Mathf.PI / halfCircleDuration) * Time.deltaTime;
+        if (isMovingClockwise)
+        {
+            circleAngle += angleSpeed;
+        }
+        else
+        {
+            circleAngle -= angleSpeed;
+        }
         
         float x = playerPos.x + Mathf.Cos(circleAngle) * followDistance;
         float z = playerPos.z + Mathf.Sin(circleAngle) * followDistance;
@@ -517,11 +685,6 @@ public class GenieBossController : MonoBehaviour
         currentHealth--;
         Debug.Log($"💔 Genie took damage! HP: {currentHealth}/{maxHealth}");
         
-        if (healthSystem != null)
-        {
-            healthSystem.TakeDamage(1, transform.position);
-        }
-        
         if (currentHealth <= 0)
         {
             Die();
@@ -647,22 +810,5 @@ public class GenieBossController : MonoBehaviour
     {
         aliveMonsters--;
         Debug.Log($"👹 Monster killed! Remaining: {aliveMonsters}");
-    }
-    
-    private void OnCollisionEnter(Collision collision)
-    {
-        Debug.Log($"🎯 Genie collided with: {collision.gameObject.name}");
-        
-        if (collision.gameObject.CompareTag("Projectile"))
-        {
-            ProjectileController proj = collision.gameObject.GetComponent<ProjectileController>();
-            
-            if (proj != null && proj.owner != null && proj.owner.CompareTag("Player"))
-            {
-                Debug.Log("✅ Genie taking damage!");
-                TakeDamage();
-                Destroy(collision.gameObject);
-            }
-        }
     }
 }

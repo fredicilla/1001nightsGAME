@@ -15,7 +15,6 @@ public class MonsterAI : MonoBehaviour
     public GenieBossController genieBoss;
     
     private Rigidbody rb;
-    private HealthSystem healthSystem;
     private Animator animator;
     
     private void Start()
@@ -46,13 +45,6 @@ public class MonsterAI : MonoBehaviour
         {
             genieBoss = FindFirstObjectByType<GenieBossController>();
         }
-        
-        healthSystem = GetComponent<HealthSystem>();
-        if (healthSystem == null)
-        {
-            healthSystem = gameObject.AddComponent<HealthSystem>();
-        }
-        healthSystem.maxHealth = maxHealth;
         
         gameObject.tag = "Monster";
     }
