@@ -19,7 +19,10 @@ namespace GeniesGambit.UI
 
                 // Re-activate all PlayerInput components so they reclaim device focus
                 foreach (var pi in FindObjectsByType<PlayerInput>(FindObjectsSortMode.None))
-                    pi.ActivateInput();
+                {
+                    if (pi.enabled && pi.gameObject.activeInHierarchy)
+                        pi.ActivateInput();
+                }
             }
         }
     }

@@ -113,33 +113,28 @@ namespace GeniesGambit.UI
 
             if (roleText != null)
             {
-                switch (iteration)
+                var def = IterationManager.Instance.CurrentDef;
+                if (def != null)
                 {
-                    case 1:
-                        roleText.text = "You control: HERO - Reach the flag!";
-                        break;
-                    case 2:
-                        roleText.text = "You control: ENEMY #1 - Stop the ghost!";
-                        break;
-                    case 3:
-                        if (totalIterations == 3)
-                        {
-                            roleText.text = "You control: HERO - Survive the ghost enemy!";
-                        }
-                        else
-                        {
-                            roleText.text = "You control: HERO - Dodge ghost enemy #1 and reach the flag!";
-                        }
-                        break;
-                    case 4:
-                        roleText.text = "You control: ENEMY #2 - Stop the ghost hero!";
-                        break;
-                    case 5:
-                        roleText.text = "You control: HERO - Survive both ghost enemies!";
-                        break;
-                    default:
-                        roleText.text = "";
-                        break;
+                    switch (def.role)
+                    {
+                        case IterationRole.Hero:
+                            if (def.replayEnemy1 || def.replayEnemy2)
+                                roleText.text = "You control: HERO - Dodge the ghosts and reach the gate!";
+                            else
+                                roleText.text = "You control: HERO - Reach the gate!";
+                            break;
+                        case IterationRole.Enemy1:
+                            roleText.text = "You control: ENEMY #1 - Stop the ghost hero!";
+                            break;
+                        case IterationRole.Enemy2:
+                            roleText.text = "You control: ENEMY #2 - Stop the ghost hero!";
+                            break;
+                    }
+                }
+                else
+                {
+                    roleText.text = "";
                 }
             }
         }
@@ -154,8 +149,10 @@ namespace GeniesGambit.UI
                 2 => "ITERATION 2\nNow you are ENEMY #1!",
                 3 => "ITERATION 3\nYou are the HERO again!",
                 4 => "ITERATION 4\nNow you are ENEMY #2!",
-                5 => "ITERATION 5\nFinal Challenge - HERO!",
-                _ => ""
+                5 => "ITERATION 5\nHERO - Dodge both ghosts!",
+                6 => "ITERATION 6\nHERO - Dodge both ghosts!",
+                7 => "ITERATION 7\nFinal Challenge - HERO!",
+                _ => $"ITERATION {iteration}"
             };
 
             _isRewindBanner = false;

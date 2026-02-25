@@ -71,7 +71,16 @@ namespace GeniesGambit.Player
                 _jumpAction.performed -= OnJumpPerformed;
         }
 
-        void OnEnable() => GameManager.OnStateChanged += HandleStateChange;
+        void OnEnable()
+        {
+            GameManager.OnStateChanged += HandleStateChange;
+
+            // If this object is re-enabled mid-turn (e.g. after rewind/debug toggle),
+            // immediately resync control ownership from current game state.
+            if (GameManager.Instance != null)
+                HandleStateChange(GameManager.Instance.CurrentState, GameManager.Instance.CurrentState);
+        }
+
         void OnDisable() => GameManager.OnStateChanged -= HandleStateChange;
 
         void OnJumpPerformed(InputAction.CallbackContext ctx)
@@ -182,16 +191,19 @@ namespace GeniesGambit.Player
 
         void HandleStateChange(GameState old, GameState next)
         {
-            _active = next == GameState.HeroTurn || next == GameState.MonsterTurn;
-
-            // Clear the falling-respawn guard whenever a new turn/round starts
-            if (next == GameState.HeroTurn || next == GameState.MonsterTurn)
-                _isFallingRespawn = false;
+            // Ownership rule:
+            // - Player-tagged actor is controllable only during HeroTurn
+            // - Enemy-tagged actor is controllable only during MonsterTurn
+            bool isHeroActor = CompareTag("Player");
+            bool isEnemyActor = CompareTag("Enemy");
+            _active = (next == GameState.HeroTurn && isHeroActor)
+                   || (next == GameState.MonsterTurn && isEnemyActor);
 
             Debug.Log($"[Player] HandleStateChange: {old} → {next}, _active = {_active}");
 
-            if (next == GameState.HeroTurn)
+            if (_active)
             {
+                _isFallingRespawn = false;
                 if (_playerInput != null && _playerInput.actions != null)
                 {
                     // Unsubscribe old handler (prevent double subscription)
@@ -213,23 +225,32 @@ namespace GeniesGambit.Player
                     // Re-activate input without toggling enabled (toggling causes OnDisable/OnEnable)
                     _playerInput.ActivateInput();
 
-                    Debug.Log($"[Player] Input re-activated. MoveAction: {_moveAction != null}, JumpAction: {_jumpAction != null}");
+                    Debug.Log($"[Player] Input re-activated for {next}. MoveAction: {_moveAction != null}, JumpAction: {_jumpAction != null}");
                 }
                 else
                 {
-                    Debug.LogWarning("[Player] PlayerInput or actions is null during HeroTurn!");
+                    Debug.LogWarning($"[Player] PlayerInput or actions is null during {next}!");
                 }
 
-                if (old == GameState.GenieWishScreen)
+                if (next == GameState.HeroTurn && old == GameState.GenieWishScreen)
                     RespawnAtStart();
             }
-
-            if (!_active) _rb.linearVelocity = Vector2.zero;
+            else
+            {
+                if (_playerInput != null) _playerInput.DeactivateInput();
+                _rb.linearVelocity = Vector2.zero;
+            }
         }
 
         public void ResetFallGuard()
         {
             _isFallingRespawn = false;
+        }
+
+        /// <summary>Called by IterationManager to sync _startPosition with heroSpawnPoint.</summary>
+        public void SetStartPosition(Vector3 pos)
+        {
+            _startPosition = pos;
         }
 
         void RespawnAtStart()
@@ -255,7 +276,5 @@ namespace GeniesGambit.Player
             Gizmos.color = _isGrounded ? Color.green : Color.red;
             Gizmos.DrawWireSphere(groundCheck.position, groundRadius);
         }
-
-
     }
 }

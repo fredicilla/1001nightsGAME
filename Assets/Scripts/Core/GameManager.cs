@@ -16,8 +16,6 @@ namespace GeniesGambit.Core
         // ── Events (subscribe to these from other systems) ─────────────────
         public static event UnityAction<GameState, GameState> OnStateChanged;
 
-        public int CurrentRound { get; private set; } = 1;
-
         void Awake()
         {
             if (Instance != null && Instance != this)
@@ -33,11 +31,7 @@ namespace GeniesGambit.Core
             CurrentState = newState;
             OnStateChanged?.Invoke(old, newState);
 
-            if (newState == GameState.MonsterTurn ||
-                newState == GameState.HeroTurn)
-                CurrentRound++;
-
-            Debug.Log($"[GameManager] {old} → {newState}  (Round {CurrentRound})");
+            Debug.Log($"[GameManager] {old} → {newState}");
         }
     }
 }

@@ -24,6 +24,12 @@ namespace GeniesGambit.Genie
         readonly List<WishData> _chosenWishesThisRound = new();
         readonly List<WishData> _allChosenWishesEver = new();
 
+        // Track which iteration each wish was chosen at (for rewind support)
+        readonly Dictionary<WishData, int> _wishIterationMap = new();
+
+        // Track spawned wish prefabs so we can destroy them on rewind
+        readonly List<GameObject> _spawnedWishObjects = new();
+
         void Awake()
         {
             if (Instance != null) { Destroy(gameObject); return; }
@@ -79,11 +85,22 @@ namespace GeniesGambit.Genie
             AudioManager.Play(AudioManager.SoundID.WishScreenOpen);
         }
 
+        public void CancelWishSelection()
+        {
+            _offeredWishes.Clear();
+            _chosenWishesThisRound.Clear();
+            if (wishPanelUI != null) wishPanelUI.Hide();
+        }
+
         public void OnWishChosen(WishData wish)
         {
             if (_chosenWishesThisRound.Contains(wish)) return;
             _chosenWishesThisRound.Add(wish);
             _allChosenWishesEver.Add(wish);
+
+            // Record which iteration this wish was chosen at
+            int currentIter = IterationManager.Instance != null ? IterationManager.Instance.CurrentIteration : 0;
+            _wishIterationMap[wish] = currentIter;
 
             Debug.Log($"[Genie] {wish.wishNameEnglish} chosen ({_chosenWishesThisRound.Count}/{wishPickCount})");
 
@@ -130,7 +147,10 @@ namespace GeniesGambit.Genie
                 wishTileMap.ApplyWish(wish.wishType, cells);
             }
             if (wish.spawnPrefab != null)
-                Instantiate(wish.spawnPrefab, GetWishSpawnPoint(wish.wishType), Quaternion.identity);
+            {
+                var spawned = Instantiate(wish.spawnPrefab, GetWishSpawnPoint(wish.wishType), Quaternion.identity);
+                _spawnedWishObjects.Add(spawned);
+            }
         }
 
         // ─── Platform world positions (read from SampleScene.unity) ──────────────
@@ -231,6 +251,97 @@ namespace GeniesGambit.Genie
             _allChosenWishesEver.Clear();
             _chosenWishesThisRound.Clear();
             _offeredWishes.Clear();
+            _wishIterationMap.Clear();
+
+            // Reset key wish mechanic baseline
+            if (KeyMechanicManager.Instance != null)
+                KeyMechanicManager.Instance.ResetKeyMechanic();
+
+            // Revert all tile changes
+            if (wishTileMap != null) wishTileMap.RevertAll();
+
+            // Destroy all spawned wish objects
+            foreach (var obj in _spawnedWishObjects)
+            {
+                if (obj != null) Destroy(obj);
+            }
+            _spawnedWishObjects.Clear();
+
+            // Refresh key object / gates to match mechanic baseline
+            KeyCollectible.ResetKey();
+
+            Debug.Log("[Genie] All wishes reset, tiles reverted, spawned objects destroyed.");
+        }
+
+        /// <summary>
+        /// Rewind wishes chosen at or after the given iteration.
+        /// Reverts tile changes and destroys spawned prefabs, then re-applies
+        /// only the wishes that remain (chosen before the target iteration).
+        /// </summary>
+        public void RewindWishesAfterIteration(int targetIteration)
+        {
+            // Collect wishes to remove
+            var wishesToRemove = new List<WishData>();
+            foreach (var kvp in _wishIterationMap)
+            {
+                if (kvp.Value >= targetIteration)
+                    wishesToRemove.Add(kvp.Key);
+            }
+
+            // Remove from tracking lists
+            foreach (var wish in wishesToRemove)
+            {
+                _allChosenWishesEver.Remove(wish);
+                _wishIterationMap.Remove(wish);
+                Debug.Log($"[Genie] Rewound wish: {wish.wishNameEnglish}");
+            }
+
+            // Rebuild persistent world from the remaining wish set
+            RebuildWishWorldFromChosenSet();
+
+            Debug.Log($"[Genie] Rewound {wishesToRemove.Count} wish(es) from iteration {targetIteration}+. {_allChosenWishesEver.Count} wish(es) remain.");
+        }
+
+        void RebuildWishWorldFromChosenSet()
+        {
+            // Reset key mechanic baseline before re-applying wishes
+            if (KeyMechanicManager.Instance != null)
+                KeyMechanicManager.Instance.ResetKeyMechanic();
+
+            // Revert all tile changes
+            if (wishTileMap != null) wishTileMap.RevertAll();
+
+            // Destroy spawned wish objects
+            foreach (var obj in _spawnedWishObjects)
+            {
+                if (obj != null) Destroy(obj);
+            }
+            _spawnedWishObjects.Clear();
+
+            // Re-apply remaining wishes
+            foreach (var wish in _allChosenWishesEver)
+            {
+                if (wish.wishType == WishType.Key)
+                {
+                    KeyWishEffect.ApplyKeyWish();
+                    continue;
+                }
+
+                if (wish.swapsTiles)
+                {
+                    var cells = GetWishCells(wish.wishType);
+                    wishTileMap.ApplyWish(wish.wishType, cells);
+                }
+
+                if (wish.spawnPrefab != null)
+                {
+                    var spawned = Instantiate(wish.spawnPrefab, GetWishSpawnPoint(wish.wishType), Quaternion.identity);
+                    _spawnedWishObjects.Add(spawned);
+                }
+            }
+
+            // Refresh key collectible and gate visuals to match final mechanic state
+            KeyCollectible.ResetKey();
         }
     }
 }

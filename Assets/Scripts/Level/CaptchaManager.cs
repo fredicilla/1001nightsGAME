@@ -213,6 +213,15 @@ namespace GeniesGambit.Level
 
         void KillCurrentPlayer()
         {
+            // Delegate to IterationManager if available — it handles position,
+            // health, physics, input, ghost replays, projectiles, and recording correctly.
+            if (Core.IterationManager.Instance != null)
+            {
+                Core.IterationManager.Instance.RestartCurrentIteration();
+                return;
+            }
+
+            // Legacy fallback (no IterationManager in scene)
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj == null)
             {

@@ -195,8 +195,22 @@ namespace GeniesGambit.Enemies
 
         void CatchPlayer()
         {
-            Debug.Log("[Monster] Caught the player! Respawning both...");
+            Debug.Log("[Monster] Caught the player!");
 
+            // Delegate respawn to IterationManager if available — it handles position,
+            // health, physics, input, ghost replays, and recording correctly.
+            if (IterationManager.Instance != null)
+            {
+                // Deal damage through Health so IterationManager's OnDeath handler runs
+                var health = player.GetComponent<Combat.Health>();
+                if (health != null && !health.IsDead)
+                {
+                    health.TakeDamage(999);
+                }
+                return;
+            }
+
+            // Legacy fallback (no IterationManager in scene)
             var playerRb = player.GetComponent<Rigidbody2D>();
             if (playerRb != null)
                 playerRb.linearVelocity = Vector2.zero;

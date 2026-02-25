@@ -1,11 +1,55 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using GeniesGambit.Player;
 using GeniesGambit.Enemies;
 using GeniesGambit.Combat;
 
 namespace GeniesGambit.Core
 {
+    // ─── Iteration definition table ──────────────────────────────────────────
+    // Each entry describes ONE iteration: who the player controls, what ghosts
+    // replay, what gets recorded, and what happens after the goal is met.
+    // To add iterations 8, 9, … just append more entries to the list.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public enum IterationRole { Hero, Enemy1, Enemy2 }
+
+    public enum PostGoalAction
+    {
+        None,             // proceed to next iteration immediately
+        ShowWishGenie,    // show wish screen, then proceed
+        TriggerBossScene  // game ends, load boss fight
+    }
+
+    [System.Serializable]
+    public class IterationDef
+    {
+        public int number;
+        public IterationRole role;
+        public bool recordHero;
+        public bool recordEnemy1;
+        public bool recordEnemy2;
+        public bool replayHero;         // replay latest hero recording as ghost
+        public bool replayEnemy1;       // replay enemy-1 recording as ghost
+        public bool replayEnemy2;       // replay enemy-2 recording as ghost
+        public PostGoalAction postGoal;
+
+        public IterationDef(int num, IterationRole role,
+            bool recH, bool recE1, bool recE2,
+            bool repH, bool repE1, bool repE2,
+            PostGoalAction post)
+        {
+            number = num;
+            this.role = role;
+            recordHero = recH; recordEnemy1 = recE1; recordEnemy2 = recE2;
+            replayHero = repH; replayEnemy1 = repE1; replayEnemy2 = repE2;
+            postGoal = post;
+        }
+    }
+
+    // ─── Main manager ────────────────────────────────────────────────────────
+
     public class IterationManager : MonoBehaviour
     {
         public static IterationManager Instance { get; private set; }
@@ -19,2465 +63,1066 @@ namespace GeniesGambit.Core
         [SerializeField] Transform enemy1SpawnPoint;
         [SerializeField] Transform enemy2SpawnPoint;
 
-        IterationTimer _iterationTimer;
+        [Header("Boss Scene")]
+        [SerializeField] string bossSceneName = "BossFight";
+        [SerializeField] float bossSceneDelay = 3f;
 
+        [Header("Victory")]
+        [SerializeField] GameObject victoryScreen;
+
+        // ── Iteration sequence (scalable — add more entries for 8, 9, …) ────
+        static readonly List<IterationDef> _sequence = new List<IterationDef>
+        {
+            //                              rec              replay
+            //  #  role                    H   E1     E2    H   E1  E2   postGoal
+            new(1, IterationRole.Hero,   true, false,false, false,false,false, PostGoalAction.None),
+            new(2, IterationRole.Enemy1, false,true, false, true, false,false, PostGoalAction.ShowWishGenie),
+            new(3, IterationRole.Hero,   true, false,false, false,true, false, PostGoalAction.None),
+            new(4, IterationRole.Enemy2, false,false,true,  true, true, false, PostGoalAction.ShowWishGenie),
+            new(5, IterationRole.Hero,   false,false,false, false,true, true,  PostGoalAction.ShowWishGenie),
+            new(6, IterationRole.Hero,   false,false,false, false,true, true,  PostGoalAction.ShowWishGenie),
+            new(7, IterationRole.Hero,   false,false,false, false,true, true,  PostGoalAction.TriggerBossScene),
+        };
+
+        // ── Runtime state ───────────────────────────────────────────────────
+        int _iterIndex = -1;  // index into _sequence
+        IterationDef _def;    // shorthand for current definition
+
+        // Live objects
         GameObject _liveHero;
-        GameObject _liveEnemy1;
-        GameObject _liveEnemy2;
+        GameObject _liveEnemy;   // the enemy the player is currently controlling
+
+        // Ghost objects
         GameObject _ghostHero;
-        GameObject _ghostHero2;
         GameObject _ghostEnemy1;
         GameObject _ghostEnemy2;
 
-        MovementRecorder _heroRecorder;
-        ProjectileShooter _heroShooter;
+        // Recordings (persist across iterations)
+        List<FrameData> _heroRecording;
+        List<ShootEvent> _heroShooterRecording;
+        List<FrameData> _enemy1Recording;
+        List<ShootEvent> _enemy1ShooterRecording;
+        List<FrameData> _enemy2Recording;
+        List<ShootEvent> _enemy2ShooterRecording;
 
-        List<FrameData> _iteration1HeroRecording;
-        List<ShootEvent> _iteration1HeroShooterRecording;
-        List<FrameData> _iteration2EnemyRecording;
-        List<ShootEvent> _iteration2EnemyShooterRecording;
-        List<FrameData> _iteration3HeroRecording;
-        List<ShootEvent> _iteration3HeroShooterRecording;
-        List<FrameData> _iteration4Enemy2Recording;
-        List<ShootEvent> _iteration4Enemy2ShooterRecording;
+        // Source iteration for each stored recording (0 = none)
+        int _heroRecordingIteration;
+        int _enemy1RecordingIteration;
+        int _enemy2RecordingIteration;
 
-        int _currentIteration = 1;
-        int _totalIterations = 3;
-        bool _heroReachedFlagInIteration1 = false;
-        bool _enemyKilledGhostInIteration2 = false;
-        bool _heroReachedFlagInIteration3 = false;
-        bool _enemy2KilledGhostInIteration4 = false;
+        // Keep hero recordings by source iteration (e.g. iter1 hero path and iter3 hero path)
+        readonly Dictionary<int, List<FrameData>> _heroRecordingsByIteration = new();
+        readonly Dictionary<int, List<ShootEvent>> _heroShooterRecordingsByIteration = new();
 
-        List<IterationState> _iterationSnapshots = new List<IterationState>();
+        // Component caches
+        MovementRecorder _activeRecorder;
+        ProjectileShooter _activeShooter;
+        IterationTimer _iterationTimer;
 
-        public int CurrentIteration => _currentIteration;
-        public int TotalIterations => _totalIterations;
+        // ── Public API ──────────────────────────────────────────────────────
+        public int CurrentIteration => _def?.number ?? 0;
+        public int TotalIterations => _sequence.Count;
+        public IterationDef CurrentDef => _def;
+        public bool CanRewind => _iterIndex > 0;
 
-        public bool CanRewind => _currentIteration > 1;
+        // ─────────────────────────────────────────────────────────────────────
+        // Lifecycle
+        // ─────────────────────────────────────────────────────────────────────
 
         void Awake()
         {
-            if (Instance != null && Instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
+            if (Instance != null && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
 
             _iterationTimer = GetComponent<IterationTimer>();
             if (_iterationTimer != null)
-            {
                 _iterationTimer.OnTimerExpired.AddListener(OnIterationTimerExpired);
+        }
+
+        /// <summary>Called by RoundManager.Start() (or any bootstrap) to kick off the game.</summary>
+        public void BeginGame()
+        {
+            Debug.Log("[IterationManager] ═══ BEGINNING 7-ITERATION GAME ═══");
+            CancelInvoke();
+
+            _heroRecording = null;
+            _heroShooterRecording = null;
+            _enemy1Recording = null;
+            _enemy1ShooterRecording = null;
+            _enemy2Recording = null;
+            _enemy2ShooterRecording = null;
+            _heroRecordingIteration = 0;
+            _enemy1RecordingIteration = 0;
+            _enemy2RecordingIteration = 0;
+            _heroRecordingsByIteration.Clear();
+            _heroShooterRecordingsByIteration.Clear();
+
+            _iterIndex = -1;
+            StartNextIteration();
+        }
+
+        /// <summary>Called by GenieManager after the player picks a wish.</summary>
+        public void OnWishApplied()
+        {
+            Debug.Log("[IterationManager] Wish applied — advancing to next iteration.");
+            StartNextIteration();
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Iteration lifecycle
+        // ─────────────────────────────────────────────────────────────────────
+
+        void StartNextIteration()
+        {
+            _iterIndex++;
+            if (_iterIndex >= _sequence.Count)
+            {
+                Debug.LogError("[IterationManager] Tried to start iteration beyond sequence length!");
+                return;
             }
+
+            _def = _sequence[_iterIndex];
+
+            // Select the latest hero recording that happened BEFORE this iteration.
+            // This is crucial when rewinding from iter4->3->2: iter2 must use iter1 hero record.
+            SyncHeroRecordingCacheForIteration(_def.number);
+
+            // Safety guard: if an iteration requires replay data that does not exist,
+            // timeline is inconsistent (usually from rewind edge cases). Rebuild from start.
+            if (!HasRequiredReplayData(_def, out string missingReason))
+            {
+                Debug.LogWarning($"[IterationManager] Missing replay data for Iteration {_def.number}: {missingReason}. Resetting iterations to rebuild timeline.");
+                ResetIterations();
+                return;
+            }
+
+            Debug.Log($"╔══════════════════════════════════════╗");
+            Debug.Log($"║  ITERATION {_def.number} / {_sequence.Count}  —  {_def.role}");
+            Debug.Log($"╚══════════════════════════════════════╝");
+
+            // Pause overlay
+            if (GameStartPauseManager.Instance != null)
+                GameStartPauseManager.Instance.PauseGameAndShowOverlay();
+
+            CleanupAll();
+
+            switch (_def.role)
+            {
+                case IterationRole.Hero:
+                    SetupHeroIteration();
+                    break;
+                case IterationRole.Enemy1:
+                    SetupEnemyIteration(enemy1SpawnPoint);
+                    break;
+                case IterationRole.Enemy2:
+                    SetupEnemyIteration(enemy2SpawnPoint);
+                    break;
+            }
+
+            // Spawn ghost replays
+            if (_def.replayHero)  SpawnGhostHero();
+            if (_def.replayEnemy1) SpawnGhostEnemy1();
+            if (_def.replayEnemy2) SpawnGhostEnemy2();
+
+            // Timer
+            if (_iterationTimer != null)
+                _iterationTimer.StartTimer();
         }
 
-        public void BeginIterationCycle(int iterationCount)
-        {
-            Debug.Log($"[IterationManager] === BEGINNING NEW ITERATION CYCLE ({iterationCount} iterations) ===");
-            CancelInvoke(); // Cancel any pending Invoke callbacks from previous round
-            _currentIteration = 0;
-            _totalIterations = iterationCount;
-            _heroReachedFlagInIteration1 = false;
-            _enemyKilledGhostInIteration2 = false;
-            _heroReachedFlagInIteration3 = false;
-            _enemy2KilledGhostInIteration4 = false;
-            _iteration1HeroRecording = null;
-            _iteration1HeroShooterRecording = null;
-            _iteration2EnemyRecording = null;
-            _iteration2EnemyShooterRecording = null;
-            _iteration3HeroRecording = null;
-            _iteration3HeroShooterRecording = null;
-            _iteration4Enemy2Recording = null;
-            _iteration4Enemy2ShooterRecording = null;
-            ClearIterationHistory();
-
-            // Pause game and show overlay at the start of each iteration cycle
-            if (GeniesGambit.Core.GameStartPauseManager.Instance != null)
-                GeniesGambit.Core.GameStartPauseManager.Instance.PauseGameAndShowOverlay();
-
-            // Spawn key if key mechanic is active
-            if (GeniesGambit.Level.KeyMechanicManager.IsKeyMechanicActive && GeniesGambit.Level.KeySpawner.Instance != null)
-                GeniesGambit.Level.KeySpawner.Instance.SpawnKey();
-
-            StartIteration1();
-        }
-
-        void ClearIterationHistory()
-        {
-            _iterationSnapshots.Clear();
-            Debug.Log("[IterationManager] Iteration history cleared");
-        }
-
-        void SaveIterationSnapshot()
-        {
-            Vector3 heroPos = _liveHero != null ? _liveHero.transform.position : Vector3.zero;
-            Vector3 enemy1Pos = _liveEnemy1 != null ? _liveEnemy1.transform.position : Vector3.zero;
-
-            var snapshot = new IterationState(
-                _currentIteration,
-                heroPos,
-                enemy1Pos,
-                _iteration1HeroRecording,
-                _iteration1HeroShooterRecording,
-                _iteration2EnemyRecording,
-                _iteration2EnemyShooterRecording,
-                _heroReachedFlagInIteration1,
-                _enemyKilledGhostInIteration2
-            );
-
-            _iterationSnapshots.Add(snapshot);
-            Debug.Log($"[IterationManager] Saved snapshot for Iteration {_currentIteration}. Total snapshots: {_iterationSnapshots.Count}");
-        }
+        // ── Restart (death / timer expired / ghost reached flag) ────────────
 
         public void RestartCurrentIteration()
         {
-            Debug.Log($"[IterationManager] === RESTARTING ITERATION {_currentIteration} ===");
-            CancelInvoke(); // Cancel any pending delayed restarts before starting a new one
+            Debug.Log($"[IterationManager] ─── RESTARTING Iteration {_def.number} ───");
+            CancelInvoke();
+            if (_iterationTimer != null) _iterationTimer.StopTimer();
 
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            switch (_currentIteration)
-            {
-                case 1:
-                    StartIteration1();
-                    break;
-                case 2:
-                    RestartIteration2();
-                    break;
-                case 3:
-                    RestartIteration3();
-                    break;
-                case 4:
-                    RestartIteration4();
-                    break;
-                case 5:
-                    RestartIteration5();
-                    break;
-                default:
-                    Debug.LogWarning($"[IterationManager] Cannot restart Iteration {_currentIteration}");
-                    break;
-            }
+            // Re-run the same index
+            _iterIndex--;
+            StartNextIteration();
         }
 
+        void DelayedRestart() => RestartCurrentIteration();
+
+        /// <summary>Rewind to a specific earlier iteration, clearing recordings from that point forward.</summary>
         public void RewindToIteration(int targetIteration)
         {
-            if (targetIteration >= _currentIteration)
+            if (targetIteration < 1 || targetIteration > _sequence.Count)
             {
-                Debug.LogWarning($"[IterationManager] Cannot rewind to Iteration {targetIteration} from Iteration {_currentIteration}");
+                Debug.LogError($"[IterationManager] Invalid rewind target: {targetIteration}");
                 return;
             }
 
-            if (targetIteration < 1 || targetIteration > _totalIterations)
-            {
-                Debug.LogError($"[IterationManager] Invalid target iteration: {targetIteration}");
-                return;
-            }
+            Debug.Log($"[IterationManager] ═══ REWINDING TO ITERATION {targetIteration} ═══");
+            CancelInvoke();
+            if (_iterationTimer != null) _iterationTimer.StopTimer();
 
-            Debug.Log($"[IterationManager] === REWINDING FROM ITERATION {_currentIteration} TO ITERATION {targetIteration} ===");
+            // If rewind is triggered while wish UI is still open, close it to prevent
+            // stale clicks from calling OnWishApplied for an old iteration context.
+            if (GeniesGambit.Genie.GenieManager.Instance != null)
+                GeniesGambit.Genie.GenieManager.Instance.CancelWishSelection();
 
             var iterationUI = FindFirstObjectByType<GeniesGambit.UI.IterationUI>();
-            if (iterationUI != null)
+            if (iterationUI != null) iterationUI.ShowRewindBanner(targetIteration);
+
+            // Clear only recordings that were ACTUALLY produced at or after the target.
+            // Example: rewinding from Iteration 3 to 2 must keep hero recording from Iteration 1.
+            if (_heroRecordingIteration >= targetIteration)
             {
-                iterationUI.ShowRewindBanner(targetIteration);
+                _heroRecording = null;
+                _heroShooterRecording = null;
+                _heroRecordingIteration = 0;
             }
 
-            if (_iterationTimer != null)
+            // Remove hero recordings produced at or after rewind target, then select
+            // the best remaining hero recording for the target iteration context.
+            var heroKeysToRemove = new List<int>();
+            foreach (var kvp in _heroRecordingsByIteration)
             {
-                _iterationTimer.StopTimer();
+                if (kvp.Key >= targetIteration) heroKeysToRemove.Add(kvp.Key);
+            }
+            foreach (var key in heroKeysToRemove)
+            {
+                _heroRecordingsByIteration.Remove(key);
+                _heroShooterRecordingsByIteration.Remove(key);
+            }
+            SyncHeroRecordingCacheForIteration(targetIteration);
+
+            if (_enemy1RecordingIteration >= targetIteration)
+            {
+                _enemy1Recording = null;
+                _enemy1ShooterRecording = null;
+                _enemy1RecordingIteration = 0;
             }
 
-            CleanupGhosts();
-
-            if (_liveEnemy1 != null)
+            if (_enemy2RecordingIteration >= targetIteration)
             {
-                _liveEnemy1.SetActive(false);
-                Destroy(_liveEnemy1);
-                _liveEnemy1 = null;
+                _enemy2Recording = null;
+                _enemy2ShooterRecording = null;
+                _enemy2RecordingIteration = 0;
             }
 
-            if (_liveEnemy2 != null)
+            // Rewind wishes chosen at or after the target iteration
+            if (GeniesGambit.Genie.GenieManager.Instance != null)
+                GeniesGambit.Genie.GenieManager.Instance.RewindWishesAfterIteration(targetIteration);
+
+            CleanupAll();
+
+            // Jump to the iteration just before the target so StartNextIteration advances to it
+            _iterIndex = targetIteration - 2;  // -1 because StartNextIteration does _iterIndex++
+            StartNextIteration();
+        }
+
+        /// <summary>Full reset — clear all recordings and restart from Iteration 1.</summary>
+        public void ResetIterations()
+        {
+            Debug.Log("[IterationManager] ═══ RESETTING ALL ITERATIONS ═══");
+            CancelInvoke();
+            if (_iterationTimer != null) _iterationTimer.StopTimer();
+
+            _heroRecording = null;
+            _heroShooterRecording = null;
+            _enemy1Recording = null;
+            _enemy1ShooterRecording = null;
+            _enemy2Recording = null;
+            _enemy2ShooterRecording = null;
+
+            CleanupAll();
+
+            _iterIndex = -1;
+            StartNextIteration();
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Setup helpers
+        // ─────────────────────────────────────────────────────────────────────
+
+        void SetupHeroIteration()
+        {
+            EnsureLiveHero();
+            _liveHero.SetActive(true);
+            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
+
+            if (heroSpawnPoint != null)
+                _liveHero.transform.position = heroSpawnPoint.position;
+
+            // Reset physics — SpikeDamage sets bodyType to Kinematic on death,
+            // and residual velocity can carry over between iterations
+            var rb = _liveHero.GetComponent<Rigidbody2D>();
+            if (rb != null)
             {
-                _liveEnemy2.SetActive(false);
-                Destroy(_liveEnemy2);
-                _liveEnemy2 = null;
+                rb.bodyType = RigidbodyType2D.Dynamic;
+                rb.linearVelocity = Vector2.zero;
             }
 
-            while (_iterationSnapshots.Count > targetIteration - 1)
+            // Health
+            var hp = _liveHero.GetComponent<Health>();
+            if (hp != null)
             {
-                _iterationSnapshots.RemoveAt(_iterationSnapshots.Count - 1);
+                hp.ResetHealth();
+                hp.OnDeath -= OnLiveHeroDied;
+                hp.OnDeath += OnLiveHeroDied;
             }
 
-            if (targetIteration == 1)
+            // Collectibles
+            GeniesGambit.Level.KeyCollectible.ResetKey();
+            GeniesGambit.Level.CoinCollectible.ResetCoins();
+
+            // Input
+            var pi = _liveHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
+            if (pi != null) { pi.enabled = true; pi.ActivateInput(); }
+
+            var pc = _liveHero.GetComponent<PlayerController>();
+            if (pc != null)
             {
-                _iteration1HeroRecording = null;
-                _iteration1HeroShooterRecording = null;
-                _iteration2EnemyRecording = null;
-                _iteration2EnemyShooterRecording = null;
-                _iteration3HeroRecording = null;
-                _iteration3HeroShooterRecording = null;
-                _iteration4Enemy2Recording = null;
-                _iteration4Enemy2ShooterRecording = null;
-                _heroReachedFlagInIteration1 = false;
-                _enemyKilledGhostInIteration2 = false;
-                _heroReachedFlagInIteration3 = false;
-                _enemy2KilledGhostInIteration4 = false;
-                StartIteration1();
+                pc.enabled = true;
+                pc.ResetFallGuard();
+                // Sync PlayerController's cached start position so RespawnAtStart uses heroSpawnPoint
+                if (heroSpawnPoint != null) pc.SetStartPosition(heroSpawnPoint.position);
             }
-            else if (targetIteration == 2)
+
+            // Recording
+            if (_def.recordHero)
             {
-                _iteration2EnemyRecording = null;
-                _iteration2EnemyShooterRecording = null;
-                _iteration3HeroRecording = null;
-                _iteration3HeroShooterRecording = null;
-                _iteration4Enemy2Recording = null;
-                _iteration4Enemy2ShooterRecording = null;
-                _enemyKilledGhostInIteration2 = false;
-                _heroReachedFlagInIteration3 = false;
-                _enemy2KilledGhostInIteration4 = false;
-                StartIteration2();
+                _activeRecorder = _liveHero.GetComponent<MovementRecorder>();
+                if (_activeRecorder == null) _activeRecorder = _liveHero.AddComponent<MovementRecorder>();
+                _activeRecorder.StartRecording();
+
+                _activeShooter = _liveHero.GetComponent<ProjectileShooter>();
+                if (_activeShooter != null)
+                {
+                    _activeShooter.SetTargetTag("Enemy");
+                    _activeShooter.StartRecording();
+                }
             }
-            else if (targetIteration == 3)
+            else
             {
-                _iteration3HeroRecording = null;
-                _iteration3HeroShooterRecording = null;
-                _iteration4Enemy2Recording = null;
-                _iteration4Enemy2ShooterRecording = null;
-                _heroReachedFlagInIteration3 = false;
-                _enemy2KilledGhostInIteration4 = false;
-                StartIteration3();
+                // Not recording — still set up shooter for gameplay (mouse shooting)
+                var shooter = _liveHero.GetComponent<ProjectileShooter>();
+                if (shooter != null)
+                {
+                    shooter.SetTargetTag("Enemy");
+                    shooter.EnableShooting(true, false);
+                }
+                _activeRecorder = null;
+                _activeShooter = null;
             }
-            else if (targetIteration == 4)
+
+            if (GameManager.Instance != null)
+                GameManager.Instance.SetState(GameState.HeroTurn);
+
+            // Brief invulnerability so stray projectiles can't kill hero during setup
+            SetHeroInvulnerableTemporarily();
+        }
+
+        void SetupEnemyIteration(Transform spawnPoint)
+        {
+            // Deactivate live hero
+            if (_liveHero != null)
             {
-                _iteration4Enemy2Recording = null;
-                _iteration4Enemy2ShooterRecording = null;
-                _enemy2KilledGhostInIteration4 = false;
-                // Use FromRestart variant — it recreates all ghosts fresh after CleanupGhosts() above
-                StartIteration4FromRestart();
+                UnsubHeroDeath();
+                var heroInput = _liveHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
+                if (heroInput != null) heroInput.DeactivateInput();
+                _liveHero.SetActive(false);
+            }
+
+            // Collectibles and key gate state should be refreshed every iteration,
+            // not only hero iterations (prevents key wish appearing to "disappear").
+            GeniesGambit.Level.KeyCollectible.ResetKey();
+            GeniesGambit.Level.CoinCollectible.ResetCoins();
+
+            // Spawn live enemy
+            _liveEnemy = Instantiate(enemyPrefab, spawnPoint.position, Quaternion.identity);
+            _liveEnemy.name = _def.role == IterationRole.Enemy1
+                ? "LiveEnemy1 (Player Controlled)"
+                : "LiveEnemy2 (Player Controlled)";
+            _liveEnemy.tag = "Enemy";
+            _liveEnemy.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
+            Debug.Log($"[IterationManager] Spawned {_liveEnemy.name} at {spawnPoint.position}");
+
+            // Health
+            var hp = _liveEnemy.GetComponent<Health>();
+            if (hp == null) hp = _liveEnemy.AddComponent<Health>();
+            hp.ResetHealth();
+            hp.OnDeath -= OnLiveEnemyDied;
+            hp.OnDeath += OnLiveEnemyDied;
+
+            // Collider
+            var col = _liveEnemy.GetComponent<Collider2D>();
+            if (col != null) col.enabled = true;
+            else
+            {
+                var cc = _liveEnemy.AddComponent<CapsuleCollider2D>();
+                cc.size = new Vector2(1f, 2f);
+            }
+
+            // Input
+            var pi = _liveEnemy.GetComponent<UnityEngine.InputSystem.PlayerInput>();
+            if (pi != null) { pi.enabled = true; }
+
+            var pc = _liveEnemy.GetComponent<PlayerController>();
+            if (pc != null) { pc.enabled = true; }
+
+            // Recording
+            bool shouldRecord = (_def.role == IterationRole.Enemy1 && _def.recordEnemy1)
+                             || (_def.role == IterationRole.Enemy2 && _def.recordEnemy2);
+            if (shouldRecord)
+            {
+                _activeRecorder = _liveEnemy.GetComponent<MovementRecorder>();
+                if (_activeRecorder == null) _activeRecorder = _liveEnemy.AddComponent<MovementRecorder>();
+                _activeRecorder.StartRecording();
+
+                _activeShooter = _liveEnemy.GetComponent<ProjectileShooter>();
+                if (_activeShooter != null)
+                {
+                    _activeShooter.SetTargetTag("Player");
+                    _activeShooter.StartRecording();
+                }
+            }
+
+            if (GameManager.Instance != null)
+                GameManager.Instance.SetState(GameState.MonsterTurn);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Ghost spawning
+        // ─────────────────────────────────────────────────────────────────────
+
+        void SpawnGhostHero()
+        {
+            // Ensure cache points to the correct historical hero recording for this iteration.
+            SyncHeroRecordingCacheForIteration(_def.number);
+
+            if (_heroRecording == null || _heroRecording.Count == 0)
+            {
+                Debug.LogWarning($"[IterationManager] No hero recording to replay in Iteration {_def.number}. Skipping ghost hero spawn.");
+                return;
+            }
+
+            _ghostHero = Instantiate(heroPrefab, heroSpawnPoint.position, Quaternion.identity);
+            _ghostHero.name = "GhostHero (Replay)";
+            _ghostHero.tag = "Player";
+            _ghostHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
+            StripLiveComponents(_ghostHero);
+
+            var hp = _ghostHero.GetComponent<Health>();
+            if (hp != null)
+            {
+                hp.ResetHealth();
+                hp.OnDeath += OnGhostHeroDied;
+            }
+
+            var col = _ghostHero.GetComponent<Collider2D>();
+            if (col != null) col.enabled = true;
+
+            var replay = _ghostHero.AddComponent<GhostReplay>();
+            replay.StartPlayback(_heroRecording);
+
+            var shooter = _ghostHero.GetComponent<ProjectileShooter>();
+            if (shooter != null && _heroShooterRecording != null)
+            {
+                shooter.SetTargetTag("Enemy");
+                shooter.StartReplay(_heroShooterRecording);
+            }
+
+            Debug.Log($"[IterationManager] Ghost hero spawned ({_heroRecording.Count} frames)");
+        }
+
+        void SpawnGhostEnemy1()
+        {
+            if (_enemy1Recording == null || _enemy1Recording.Count == 0)
+            {
+                Debug.LogWarning("[IterationManager] No enemy-1 recording to replay!");
+                return;
+            }
+
+            _ghostEnemy1 = Instantiate(enemyPrefab, enemy1SpawnPoint.position, Quaternion.identity);
+            _ghostEnemy1.name = "GhostEnemy1 (Replay)";
+            _ghostEnemy1.tag = "Enemy";
+            _ghostEnemy1.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
+            StripLiveComponents(_ghostEnemy1);
+
+            var hp = _ghostEnemy1.GetComponent<Health>();
+            if (hp == null) hp = _ghostEnemy1.AddComponent<Health>();
+            hp.ResetHealth();
+            hp.OnDeath += OnGhostEnemy1Died;
+
+            var col = _ghostEnemy1.GetComponent<Collider2D>();
+            if (col != null) col.enabled = true;
+
+            var replay = _ghostEnemy1.AddComponent<GhostReplay>();
+            replay.StartPlayback(_enemy1Recording);
+
+            var shooter = _ghostEnemy1.GetComponent<ProjectileShooter>();
+            if (shooter != null && _enemy1ShooterRecording != null)
+            {
+                shooter.SetTargetTag("Player");
+                shooter.StartReplay(_enemy1ShooterRecording);
+            }
+
+            Debug.Log($"[IterationManager] Ghost enemy #1 spawned ({_enemy1Recording.Count} frames)");
+        }
+
+        void SpawnGhostEnemy2()
+        {
+            if (_enemy2Recording == null || _enemy2Recording.Count == 0)
+            {
+                Debug.LogWarning("[IterationManager] No enemy-2 recording to replay!");
+                return;
+            }
+
+            _ghostEnemy2 = Instantiate(enemyPrefab, enemy2SpawnPoint.position, Quaternion.identity);
+            _ghostEnemy2.name = "GhostEnemy2 (Replay)";
+            _ghostEnemy2.tag = "Enemy";
+            _ghostEnemy2.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
+            StripLiveComponents(_ghostEnemy2);
+
+            var hp = _ghostEnemy2.GetComponent<Health>();
+            if (hp == null) hp = _ghostEnemy2.AddComponent<Health>();
+            hp.ResetHealth();
+            hp.OnDeath += OnGhostEnemy2Died;
+
+            var col = _ghostEnemy2.GetComponent<Collider2D>();
+            if (col != null) col.enabled = true;
+
+            var replay = _ghostEnemy2.AddComponent<GhostReplay>();
+            replay.StartPlayback(_enemy2Recording);
+
+            var shooter = _ghostEnemy2.GetComponent<ProjectileShooter>();
+            if (shooter != null && _enemy2ShooterRecording != null)
+            {
+                shooter.SetTargetTag("Player");
+                shooter.StartReplay(_enemy2ShooterRecording);
+            }
+
+            Debug.Log($"[IterationManager] Ghost enemy #2 spawned ({_enemy2Recording.Count} frames)");
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Goal reached callbacks (called by FlagTrigger)
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>Hero (live) reached the gate. Valid in hero iterations.</summary>
+        public void OnHeroReachedGate()
+        {
+            if (_def.role != IterationRole.Hero)
+            {
+                Debug.LogWarning($"[IterationManager] OnHeroReachedGate called but role is {_def.role}!");
+                return;
+            }
+
+            Debug.Log($"[IterationManager] Hero reached gate in Iteration {_def.number}!");
+            if (_iterationTimer != null) _iterationTimer.StopTimer();
+
+            StoreRecordings();
+            HandlePostGoal();
+        }
+
+        /// <summary>Ghost hero reached the gate — enemy failed to stop it. Restart.</summary>
+        public void OnGhostReachedFlag()
+        {
+            Debug.Log($"[IterationManager] Ghost hero reached gate in Iteration {_def.number}! Enemy failed — restarting.");
+            DestroyAllProjectiles();
+            StopAllGhostReplays();
+            ResetAllChasingMonsters();
+            Invoke(nameof(DelayedRestart), 0.1f);
+        }
+
+        /// <summary>Enemy killed the ghost hero. Valid in enemy iterations.</summary>
+        void OnGhostHeroDied()
+        {
+            if (_def.role != IterationRole.Enemy1 && _def.role != IterationRole.Enemy2)
+                return;
+
+            Debug.Log($"[IterationManager] Ghost hero killed in Iteration {_def.number}! Enemy wins.");
+            if (_iterationTimer != null) _iterationTimer.StopTimer();
+
+            StoreRecordings();
+            HandlePostGoal();
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Death callbacks
+        // ─────────────────────────────────────────────────────────────────────
+
+        void OnLiveHeroDied()
+        {
+            Debug.Log($"[IterationManager] Hero died in Iteration {_def.number}!");
+
+            // Always destroy projectiles immediately to prevent re-kill on respawn
+            DestroyAllProjectiles();
+
+            if (_def.recordHero)
+            {
+                // Recording iteration — restart recording from scratch.
+                // IMPORTANT: We must defer this to next frame because Health.Die() calls
+                // SetActive(false) AFTER invoking OnDeath. If we call ResetHeroForRerecord
+                // synchronously here, its SetActive(true) gets immediately undone by Die().
+                Debug.Log("[IterationManager] Deferring hero re-record reset to next frame...");
+                StartCoroutine(DeferredResetHeroForRerecord());
+            }
+            else
+            {
+                // Non-recording hero iteration (5, 6, 7) — restart iteration.
+                // DelayedRestart already uses Invoke with a delay, so Die()'s SetActive(false)
+                // runs first, then RestartCurrentIteration re-activates the hero properly.
+                StopAllGhostReplays();
+                ResetAllChasingMonsters();
+                Invoke(nameof(DelayedRestart), 0.1f);
             }
         }
 
-        void StartIteration1()
+        bool HasRequiredReplayData(IterationDef def, out string reason)
         {
-            Debug.Log("=== ITERATION 1: You control HERO ===");
-            _currentIteration = 1;
-            _heroReachedFlagInIteration1 = false;
-
-            CleanupGhosts();
-
-            // Only search for hero if we don't have a valid reference
-            // This prevents finding ghosts that haven't been destroyed yet
-            if (_liveHero == null || !_liveHero.CompareTag("Player"))
+            if (def.replayHero && GetLatestHeroRecordingIterationBefore(def.number) == 0)
             {
-                _liveHero = GameObject.FindGameObjectWithTag("Player");
+                reason = "Hero replay requested but hero recording is empty";
+                return false;
             }
 
-            if (_liveHero == null)
+            if (def.replayEnemy1 && (_enemy1Recording == null || _enemy1Recording.Count == 0))
             {
-                Debug.LogError("[IterationManager] No Player GameObject found!");
+                reason = "Enemy1 replay requested but enemy1 recording is empty";
+                return false;
+            }
+
+            if (def.replayEnemy2 && (_enemy2Recording == null || _enemy2Recording.Count == 0))
+            {
+                reason = "Enemy2 replay requested but enemy2 recording is empty";
+                return false;
+            }
+
+            reason = null;
+            return true;
+        }
+
+        int GetLatestHeroRecordingIterationBefore(int iterationExclusive)
+        {
+            int best = 0;
+            foreach (var kvp in _heroRecordingsByIteration)
+            {
+                if (kvp.Key < iterationExclusive && kvp.Value != null && kvp.Value.Count > 0 && kvp.Key > best)
+                    best = kvp.Key;
+            }
+            return best;
+        }
+
+        void SyncHeroRecordingCacheForIteration(int iterationExclusive)
+        {
+            int best = GetLatestHeroRecordingIterationBefore(iterationExclusive);
+            if (best == 0)
+            {
+                _heroRecording = null;
+                _heroShooterRecording = null;
+                _heroRecordingIteration = 0;
                 return;
             }
 
-            // Make sure we have the real hero, not a ghost
-            if (_liveHero.name.Contains("Ghost"))
+            _heroRecordingIteration = best;
+            _heroRecording = _heroRecordingsByIteration[best];
+            _heroShooterRecordingsByIteration.TryGetValue(best, out _heroShooterRecording);
+        }
+
+        System.Collections.IEnumerator DeferredResetHeroForRerecord()
+        {
+            // Wait one frame so Health.Die() finishes calling SetActive(false)
+            yield return null;
+            ResetHeroForRerecord();
+        }
+
+        void OnLiveEnemyDied()
+        {
+            Debug.Log($"[IterationManager] Live enemy died in Iteration {_def.number}! Restarting...");
+            if (_iterationTimer != null) _iterationTimer.StopTimer();
+            DestroyAllProjectiles();
+            StopAllGhostReplays();
+            ResetAllChasingMonsters();
+            Invoke(nameof(DelayedRestart), 0.1f);
+        }
+
+        void OnGhostEnemy1Died()
+        {
+            Debug.Log("[IterationManager] Ghost enemy #1 killed!");
+            _ghostEnemy1 = null;
+        }
+
+        void OnGhostEnemy2Died()
+        {
+            Debug.Log("[IterationManager] Ghost enemy #2 killed!");
+            _ghostEnemy2 = null;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Recording storage
+        // ─────────────────────────────────────────────────────────────────────
+
+        void StoreRecordings()
+        {
+            if (_activeRecorder != null)
             {
-                Debug.LogWarning("[IterationManager] Found ghost instead of real hero! Searching again...");
-                var allPlayers = GameObject.FindGameObjectsWithTag("Player");
-                foreach (var player in allPlayers)
+                _activeRecorder.StopRecording();
+                var frames = _activeRecorder.GetRecording();
+
+                if (_def.recordHero)
                 {
-                    if (!player.name.Contains("Ghost"))
+                    _heroRecording = frames;
+                    _heroRecordingIteration = _def.number;
+                    _heroRecordingsByIteration[_def.number] = frames;
+                    Debug.Log($"[IterationManager] Stored hero recording: {frames.Count} frames");
+                }
+                else if (_def.recordEnemy1)
+                {
+                    _enemy1Recording = frames;
+                    _enemy1RecordingIteration = _def.number;
+                    Debug.Log($"[IterationManager] Stored enemy-1 recording: {frames.Count} frames");
+                }
+                else if (_def.recordEnemy2)
+                {
+                    _enemy2Recording = frames;
+                    _enemy2RecordingIteration = _def.number;
+                    Debug.Log($"[IterationManager] Stored enemy-2 recording: {frames.Count} frames");
+                }
+            }
+
+            if (_activeShooter != null)
+            {
+                _activeShooter.StopRecording();
+                var shots = _activeShooter.GetRecording();
+
+                if (_def.recordHero)
+                {
+                    _heroShooterRecording = shots;
+                    _heroShooterRecordingsByIteration[_def.number] = shots;
+                    Debug.Log($"[IterationManager] Stored hero shooter recording: {shots.Count} shots");
+                }
+                else if (_def.recordEnemy1)
+                {
+                    _enemy1ShooterRecording = shots;
+                    Debug.Log($"[IterationManager] Stored enemy-1 shooter recording: {shots.Count} shots");
+                }
+                else if (_def.recordEnemy2)
+                {
+                    _enemy2ShooterRecording = shots;
+                    Debug.Log($"[IterationManager] Stored enemy-2 shooter recording: {shots.Count} shots");
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Post-goal flow
+        // ─────────────────────────────────────────────────────────────────────
+
+        void HandlePostGoal()
+        {
+            switch (_def.postGoal)
+            {
+                case PostGoalAction.None:
+                    StartNextIteration();
+                    break;
+
+                case PostGoalAction.ShowWishGenie:
+                    Debug.Log("[IterationManager] Showing Wish Genie screen...");
+                    if (GameManager.Instance != null)
+                        GameManager.Instance.SetState(GameState.GenieWishScreen);
+                    // GenieManager listens for this state and will call OnWishApplied()
+                    // when the player picks a wish, which resumes the loop.
+                    break;
+
+                case PostGoalAction.TriggerBossScene:
+                    Debug.Log("[IterationManager] All 7 iterations complete! Triggering Boss Scene...");
+                    CleanupAll();
+
+                    if (GameData.Instance != null)
+                        GameData.Instance.RoundsCompleted = _sequence.Count;
+
+                    AudioManager.Play(AudioManager.SoundID.GameWin);
+
+                    if (victoryScreen != null)
+                        victoryScreen.SetActive(true);
+
+                    if (GameManager.Instance != null)
+                        GameManager.Instance.SetState(GameState.BossScene);
+
+                    Invoke(nameof(LoadBossScene), bossSceneDelay);
+                    break;
+            }
+        }
+
+        void LoadBossScene()
+        {
+            Debug.Log($"[IterationManager] Loading {bossSceneName}...");
+            SceneManager.LoadScene(bossSceneName);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Timer expired
+        // ─────────────────────────────────────────────────────────────────────
+
+        void OnIterationTimerExpired()
+        {
+            Debug.Log($"[IterationManager] Timer expired in Iteration {_def.number}! Restarting...");
+            DestroyAllProjectiles();
+            StopAllGhostReplays();
+            ResetAllChasingMonsters();
+            Invoke(nameof(DelayedRestart), 0.1f);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Hero re-record (death during recording iteration)
+        // ─────────────────────────────────────────────────────────────────────
+
+        void ResetHeroForRerecord()
+        {
+            if (_liveHero == null)
+            {
+                Debug.LogError("[IterationManager] ResetHeroForRerecord: _liveHero is NULL!");
+                return;
+            }
+
+            Debug.Log($"[IterationManager] ResetHeroForRerecord: hero active BEFORE={_liveHero.activeSelf}");
+
+            // Re-activate the GameObject (Health.Die() called SetActive(false) after OnDeath)
+            _liveHero.SetActive(true);
+
+            Debug.Log($"[IterationManager] ResetHeroForRerecord: hero active AFTER SetActive(true)={_liveHero.activeSelf}");
+
+            // Position & velocity
+            if (heroSpawnPoint != null)
+                _liveHero.transform.position = heroSpawnPoint.position;
+
+            // Reset physics — SpikeDamage sets bodyType to Kinematic on death
+            var rb = _liveHero.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.bodyType = RigidbodyType2D.Dynamic;
+                rb.linearVelocity = Vector2.zero;
+            }
+
+            // Health (also re-enables collider and clears _isDead)
+            var hp = _liveHero.GetComponent<Health>();
+            if (hp != null)
+            {
+                hp.ResetHealth();
+                // Re-subscribe OnDeath so the hero can die again
+                hp.OnDeath -= OnLiveHeroDied;
+                hp.OnDeath += OnLiveHeroDied;
+            }
+
+            // Re-enable input (Health/death may have disabled these)
+            var pi = _liveHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
+            if (pi != null) { pi.enabled = true; pi.ActivateInput(); }
+
+            var pc = _liveHero.GetComponent<PlayerController>();
+            if (pc != null)
+            {
+                pc.enabled = true;
+                pc.ResetFallGuard();
+                if (heroSpawnPoint != null) pc.SetStartPosition(heroSpawnPoint.position);
+            }
+
+            // Re-enable scale (in case anything changed it)
+            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
+
+            // Collectibles
+            GeniesGambit.Level.KeyCollectible.ResetKey();
+            GeniesGambit.Level.CoinCollectible.ResetCoins();
+
+            // Destroy any in-flight projectiles and reset monsters
+            DestroyAllProjectiles();
+            ResetAllChasingMonsters();
+
+            // Restart ghost replays so they sync with the new recording attempt
+            StopAllGhostReplays();
+            DestroyTagged(ref _ghostHero);
+            DestroyTagged(ref _ghostEnemy1);
+            DestroyTagged(ref _ghostEnemy2);
+            if (_def.replayHero)   SpawnGhostHero();
+            if (_def.replayEnemy1) SpawnGhostEnemy1();
+            if (_def.replayEnemy2) SpawnGhostEnemy2();
+
+            // Restart recording and shooter
+            if (_activeRecorder != null) _activeRecorder.StartRecording();
+            if (_activeShooter != null) _activeShooter.StartRecording();
+
+            // Restart timer
+            if (_iterationTimer != null) _iterationTimer.StartTimer();
+
+            // Brief invulnerability so stray damage can't kill hero mid-setup
+            SetHeroInvulnerableTemporarily();
+
+            Debug.Log("[IterationManager] Hero recording restarted from scratch after death.");
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Utility
+        // ─────────────────────────────────────────────────────────────────────
+
+        void EnsureLiveHero()
+        {
+            // Cached reference is still valid (works even if hero is deactivated by Health.Die)
+            if (_liveHero != null) return;
+
+            // Fallback: search scene for the Player tag (only finds active objects)
+            _liveHero = GameObject.FindGameObjectWithTag("Player");
+
+            // Make sure we have the real hero, not a ghost
+            if (_liveHero != null && _liveHero.name.Contains("Ghost"))
+            {
+                var allPlayers = GameObject.FindGameObjectsWithTag("Player");
+                foreach (var p in allPlayers)
+                {
+                    if (!p.name.Contains("Ghost"))
                     {
-                        _liveHero = player;
+                        _liveHero = p;
                         break;
                     }
                 }
             }
 
-            _liveHero.SetActive(true);
-            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-            // Reset hero position to spawn point for new round
-            if (heroSpawnPoint != null)
+            if (_liveHero == null)
             {
-                _liveHero.transform.position = heroSpawnPoint.position;
-            }
-
-            // Reset hero health for new round
-            var heroHealth = _liveHero.GetComponent<Health>();
-            if (heroHealth != null)
-            {
-                heroHealth.ResetHealth();
-                // Subscribe to death in Iteration 1 to restart recording
-                heroHealth.OnDeath -= OnHeroDiedInIteration1;
-                heroHealth.OnDeath += OnHeroDiedInIteration1;
-            }
-
-            // Reset collectibles for new round
-            GeniesGambit.Level.KeyCollectible.ResetKey();
-            GeniesGambit.Level.CoinCollectible.ResetCoins();
-
-            // Ensure hero's input is properly enabled
-            var heroInput = _liveHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-            if (heroInput != null)
-            {
-                heroInput.enabled = true;
-                heroInput.ActivateInput();
-                Debug.Log("[IterationManager] Hero PlayerInput re-enabled and activated");
-            }
-
-            var heroController = _liveHero.GetComponent<PlayerController>();
-            if (heroController != null)
-            {
-                heroController.enabled = true;
-                heroController.ResetFallGuard(); // clear any stale fall guard from a previous fall
-            }
-            if (_heroRecorder == null)
-            {
-                _heroRecorder = _liveHero.AddComponent<MovementRecorder>();
-            }
-
-            _heroShooter = _liveHero.GetComponent<ProjectileShooter>();
-            if (_heroShooter == null)
-            {
-                Debug.LogWarning("[IterationManager] Hero has no ProjectileShooter component!");
-            }
-
-            _heroRecorder.StartRecording();
-            if (_heroShooter != null)
-            {
-                _heroShooter.SetTargetTag("Enemy");
-                _heroShooter.StartRecording();
-            }
-
-            if (_liveEnemy1 != null)
-            {
-                _liveEnemy1.SetActive(false);
-                Destroy(_liveEnemy1);
-                _liveEnemy1 = null;
-            }
-
-            if (_liveEnemy2 != null)
-            {
-                _liveEnemy2.SetActive(false);
-                Destroy(_liveEnemy2);
-                _liveEnemy2 = null;
-            }
-
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.SetState(GameState.HeroTurn);
-            }
-
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StartTimer();
+                Debug.LogError("[IterationManager] No Player GameObject found!");
             }
         }
 
-        public void OnHeroReachedFlag()
+        /// <summary>Remove PlayerController, PlayerInput, MovementRecorder, set RB kinematic.</summary>
+        void StripLiveComponents(GameObject ghost)
         {
-            if (_currentIteration != 1)
-            {
-                Debug.LogWarning("[IterationManager] OnHeroReachedFlag called but not in Iteration 1!");
-                return;
-            }
+            var pc = ghost.GetComponent<PlayerController>();
+            if (pc != null) { pc.enabled = false; Destroy(pc); }
 
-            Debug.Log("[IterationManager] Hero reached flag in Iteration 1! Recording complete.");
-            _heroReachedFlagInIteration1 = true;
+            var pi = ghost.GetComponent<UnityEngine.InputSystem.PlayerInput>();
+            if (pi != null) { pi.enabled = false; Destroy(pi); }
 
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
+            var rec = ghost.GetComponent<MovementRecorder>();
+            if (rec != null) { rec.enabled = false; Destroy(rec); }
 
-            _heroRecorder.StopRecording();
-            _iteration1HeroRecording = _heroRecorder.GetRecording();
-
-            if (_heroShooter != null)
-            {
-                _heroShooter.StopRecording();
-                _iteration1HeroShooterRecording = _heroShooter.GetRecording();
-                Debug.Log($"[IterationManager] Stored hero shot recording: {_iteration1HeroShooterRecording.Count} shots");
-            }
-
-            SaveIterationSnapshot();
-            StartIteration2();
+            var rb = ghost.GetComponent<Rigidbody2D>();
+            if (rb != null) rb.bodyType = RigidbodyType2D.Kinematic;
         }
 
-        void OnHeroDiedInIteration1()
+        void UnsubHeroDeath()
         {
-            if (_currentIteration != 1) return;
-
-            Debug.Log("[IterationManager] Hero died in Iteration 1! Clearing recording and restarting...");
-
-            // Stop current recording
-            if (_heroRecorder != null)
-            {
-                _heroRecorder.StopRecording();
-            }
-            if (_heroShooter != null)
-            {
-                _heroShooter.StopRecording();
-            }
-
-            // Wait a frame then restart recording fresh
-            Invoke(nameof(RestartRecordingAfterDeath), 0.1f);
+            if (_liveHero == null) return;
+            var hp = _liveHero.GetComponent<Health>();
+            if (hp != null) hp.OnDeath -= OnLiveHeroDied;
         }
 
-        void RestartRecordingAfterDeath()
+        void StopAllGhostReplays()
         {
-            // Reactivate hero (it was deactivated by Health.Die())
-            if (_liveHero != null)
-            {
-                _liveHero.SetActive(true);
-            }
-
-            // Reset hero to spawn point
-            if (_liveHero != null && heroSpawnPoint != null)
-            {
-                _liveHero.transform.position = heroSpawnPoint.position;
-            }
-
-            // Reset hero velocity
-            var heroRb = _liveHero.GetComponent<Rigidbody2D>();
-            if (heroRb != null)
-            {
-                heroRb.linearVelocity = Vector2.zero;
-            }
-
-            // Reset health
-            var heroHealth = _liveHero.GetComponent<Health>();
-            if (heroHealth != null)
-            {
-                heroHealth.ResetHealth();
-            }
-
-            // Restart recording from scratch
-            if (_heroRecorder != null)
-            {
-                _heroRecorder.StartRecording();
-            }
-            if (_heroShooter != null)
-            {
-                _heroShooter.StartRecording();
-            }
-
-            // Restart timer
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StartTimer();
-            }
-
-            Debug.Log("[IterationManager] Recording restarted fresh after death");
+            StopGhostReplay(_ghostHero);
+            StopGhostReplay(_ghostEnemy1);
+            StopGhostReplay(_ghostEnemy2);
         }
 
-        void StartIteration2()
+        void StopGhostReplay(GameObject ghost)
         {
-            Debug.Log("=== ITERATION 2: You control ENEMY ===");
-            _currentIteration = 2;
-            _enemyKilledGhostInIteration2 = false;
+            if (ghost == null) return;
+            var replay = ghost.GetComponent<GhostReplay>();
+            if (replay != null) replay.Stop();
+        }
 
-            // Validate recordings exist
-            if (_iteration1HeroRecording == null || _iteration1HeroRecording.Count == 0)
+        void CleanupAll()
+        {
+            // Destroy all in-flight projectiles so they don't hit the hero on respawn
+            DestroyAllProjectiles();
+
+            // Reset chasing monsters to their spawn positions
+            ResetAllChasingMonsters();
+
+            // Ghosts
+            DestroyTagged(ref _ghostHero);
+            DestroyTagged(ref _ghostEnemy1);
+            DestroyTagged(ref _ghostEnemy2);
+
+            // Live enemy (spawned each enemy iteration)
+            if (_liveEnemy != null)
             {
-                Debug.LogError("[IterationManager] ERROR: Hero movement recording is null or empty! Cannot replay.");
-                ResetIterations();
-                return;
-            }
-            Debug.Log($"[IterationManager] Hero recording valid: {_iteration1HeroRecording.Count} frames, {_iteration1HeroShooterRecording?.Count ?? 0} shots");
-
-            // Unsubscribe death handler from Iteration 1
-            var liveHeroHealth = _liveHero.GetComponent<Health>();
-            if (liveHeroHealth != null)
-            {
-                liveHeroHealth.OnDeath -= OnHeroDiedInIteration1;
-            }
-
-            _liveHero.SetActive(false);
-            Debug.Log("[IterationManager] Hero deactivated");
-
-            _ghostHero = Instantiate(heroPrefab, heroSpawnPoint.position, Quaternion.identity);
-            _ghostHero.name = "GhostHero (Iteration 1 Replay)";
-            _ghostHero.tag = "Player"; // Must have Player tag so enemy projectiles can hit it
-            _ghostHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-            // Disable components immediately to prevent input conflicts, then Destroy
-            var ghostPlayerController = _ghostHero.GetComponent<PlayerController>();
-            if (ghostPlayerController != null)
-            {
-                ghostPlayerController.enabled = false;
-                Destroy(ghostPlayerController);
+                var hp = _liveEnemy.GetComponent<Health>();
+                if (hp != null) hp.OnDeath -= OnLiveEnemyDied;
+                _liveEnemy.SetActive(false);
+                Destroy(_liveEnemy);
+                _liveEnemy = null;
             }
 
-            var ghostPlayerInput = _ghostHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-            if (ghostPlayerInput != null)
+            // Unsub hero death (hero persists, just unsub)
+            UnsubHeroDeath();
+        }
+
+        void DestroyTagged(ref GameObject obj)
+        {
+            if (obj == null) return;
+            obj.tag = "Untagged";
+            obj.SetActive(false);
+            Destroy(obj);
+            obj = null;
+        }
+
+        /// <summary>Destroy every Projectile currently in the scene (prevents re-kill on respawn).</summary>
+        void DestroyAllProjectiles()
+        {
+            var projectiles = FindObjectsByType<Projectile>(FindObjectsSortMode.None);
+            foreach (var p in projectiles)
             {
-                ghostPlayerInput.enabled = false;
-                Destroy(ghostPlayerInput);
+                if (p != null) Destroy(p.gameObject);
             }
+            if (projectiles.Length > 0)
+                Debug.Log($"[IterationManager] Destroyed {projectiles.Length} in-flight projectile(s)");
+        }
 
-            var ghostRecorder = _ghostHero.GetComponent<MovementRecorder>();
-            if (ghostRecorder != null)
+        /// <summary>Reset all ChasingMonsters in the scene to their spawn positions.</summary>
+        void ResetAllChasingMonsters()
+        {
+            var monsters = FindObjectsByType<ChasingMonster>(FindObjectsSortMode.None);
+            foreach (var m in monsters)
             {
-                ghostRecorder.enabled = false;
-                Destroy(ghostRecorder);
-            }
-
-            var ghostRb = _ghostHero.GetComponent<Rigidbody2D>();
-            if (ghostRb != null)
-            {
-                ghostRb.bodyType = RigidbodyType2D.Kinematic;
-            }
-
-            var ghostHealth = _ghostHero.GetComponent<Health>();
-            if (ghostHealth != null)
-            {
-                ghostHealth.ResetHealth(); // Ensure ghost can take damage
-                ghostHealth.OnDeath += OnGhostHeroDied;
-                Debug.Log("[IterationManager] Ghost hero Health reset and OnDeath subscribed");
-            }
-            else
-            {
-                Debug.LogError("[IterationManager] Ghost hero has NO Health component! Cannot be killed!");
-            }
-
-            // Ensure ghost has a collider that can be hit
-            var ghostCollider = _ghostHero.GetComponent<Collider2D>();
-            if (ghostCollider != null)
-            {
-                ghostCollider.enabled = true;
-                Debug.Log($"[IterationManager] Ghost collider enabled: {ghostCollider.GetType().Name}");
-            }
-            else
-            {
-                Debug.LogError("[IterationManager] Ghost hero has NO Collider2D! Cannot be hit!");
-            }
-
-            var ghostReplay = _ghostHero.AddComponent<GhostReplay>();
-            ghostReplay.StartPlayback(_iteration1HeroRecording);
-
-            var ghostShooter = _ghostHero.GetComponent<ProjectileShooter>();
-            if (ghostShooter != null && _iteration1HeroShooterRecording != null)
-            {
-                Debug.Log($"[IterationManager] Ghost hero shooter found. Using stored shot recording: {_iteration1HeroShooterRecording.Count} shots");
-                ghostShooter.SetTargetTag("Enemy"); // Ghost hero targets enemies
-                ghostShooter.StartReplay(_iteration1HeroShooterRecording);
-            }
-            else
-            {
-                Debug.LogWarning($"[IterationManager] Ghost shooter setup failed! ghostShooter={ghostShooter != null}, hasShooterRecording={_iteration1HeroShooterRecording != null}");
-            }
-
-            // Ghost keeps the same color as the original player
-            // var spriteRenderer = _ghostHero.GetComponent<SpriteRenderer>();
-            // No color change needed - ghost uses original sprite colors
-
-            if (enemyPrefab != null)
-            {
-                _liveEnemy1 = Instantiate(enemyPrefab, enemy1SpawnPoint.position, Quaternion.identity);
-                _liveEnemy1.name = "LiveEnemy1 (Player Controlled)";
-                _liveEnemy1.tag = "Enemy";
-                _liveEnemy1.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-                Debug.Log($"[IterationManager] Enemy #1 spawned at {enemy1SpawnPoint.position}");
-
-                var enemyHealth = _liveEnemy1.GetComponent<Health>();
-                if (enemyHealth == null)
-                {
-                    enemyHealth = _liveEnemy1.AddComponent<Health>();
-                    Debug.Log("[IterationManager] Added Health component to enemy #1");
-                }
-                enemyHealth.ResetHealth();
-                enemyHealth.OnDeath -= OnLiveEnemyDied;
-                enemyHealth.OnDeath += OnLiveEnemyDied;
-                Debug.Log("[IterationManager] Enemy #1 Health reset and OnDeath subscribed");
-
-                var enemyCollider = _liveEnemy1.GetComponent<Collider2D>();
-                if (enemyCollider != null)
-                {
-                    enemyCollider.enabled = true;
-                    Debug.Log($"[IterationManager] Enemy #1 collider enabled: {enemyCollider.GetType().Name}");
-                }
-                else
-                {
-                    var capsuleCollider = _liveEnemy1.AddComponent<CapsuleCollider2D>();
-                    capsuleCollider.size = new Vector2(1f, 2f);
-                    Debug.Log("[IterationManager] Added CapsuleCollider2D to enemy #1");
-                }
-
-                var enemyInput = _liveEnemy1.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyInput != null)
-                {
-                    enemyInput.enabled = true;
-                    Debug.Log("[IterationManager] Enemy #1 PlayerInput enabled");
-                }
-                else
-                {
-                    Debug.LogError("[IterationManager] Enemy #1 has NO PlayerInput component!");
-                }
-
-                var enemyController = _liveEnemy1.GetComponent<PlayerController>();
-                if (enemyController != null)
-                {
-                    enemyController.enabled = true;
-                    Debug.Log("[IterationManager] Enemy #1 PlayerController enabled");
-                }
-                else
-                {
-                    Debug.LogWarning("[IterationManager] Enemy #1 has no PlayerController!");
-                }
-
-                var enemyRecorder = _liveEnemy1.GetComponent<MovementRecorder>();
-                if (enemyRecorder == null)
-                {
-                    enemyRecorder = _liveEnemy1.AddComponent<MovementRecorder>();
-                }
-                enemyRecorder.StartRecording();
-
-                var enemyShooter = _liveEnemy1.GetComponent<ProjectileShooter>();
-                if (enemyShooter != null)
-                {
-                    enemyShooter.SetTargetTag("Player");
-                    enemyShooter.StartRecording();
-                }
-
-                Debug.Log($"[IterationManager] Enemy #1 fully configured. Components: PlayerInput={enemyInput != null}, PlayerController={enemyController != null}");
-            }
-            else
-            {
-                Debug.LogError("[IterationManager] Enemy prefab is NULL!");
-            }
-
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.SetState(GameState.MonsterTurn);
-            }
-
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StartTimer();
+                if (m != null) m.RespawnGhostPublic();
             }
         }
 
-        void OnGhostHeroDied()
+        /// <summary>Make hero briefly invulnerable so stray damage can't kill it mid-setup.</summary>
+        void SetHeroInvulnerableTemporarily()
         {
-            if (_currentIteration != 2)
-            {
-                return;
-            }
-
-            Debug.Log("[IterationManager] Ghost hero died in Iteration 2!");
-            _enemyKilledGhostInIteration2 = true;
-
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            if (_liveEnemy1 != null)
-            {
-                var enemyRecorder = _liveEnemy1.GetComponent<MovementRecorder>();
-                if (enemyRecorder != null)
-                {
-                    enemyRecorder.StopRecording();
-                    _iteration2EnemyRecording = enemyRecorder.GetRecording();
-                    Debug.Log($"[IterationManager] Stored enemy #1 movement recording: {_iteration2EnemyRecording.Count} frames");
-                }
-
-                var enemyShooter = _liveEnemy1.GetComponent<ProjectileShooter>();
-                if (enemyShooter != null)
-                {
-                    enemyShooter.StopRecording();
-                    _iteration2EnemyShooterRecording = enemyShooter.GetRecording();
-                    Debug.Log($"[IterationManager] Stored enemy #1 shooter recording: {_iteration2EnemyShooterRecording.Count} shots");
-                }
-            }
-
-            SaveIterationSnapshot();
-            StartIteration3();
+            if (_liveHero == null) return;
+            var hp = _liveHero.GetComponent<Health>();
+            if (hp == null) return;
+            hp.SetInvulnerable(true);
+            StartCoroutine(EndInvulnerability(hp, 0.3f));
         }
 
-        void OnLiveEnemyDied()
+        System.Collections.IEnumerator EndInvulnerability(Health hp, float delay)
         {
-            if (_currentIteration != 2)
-            {
-                return;
-            }
-
-            Debug.Log("[IterationManager] Live enemy #1 died in Iteration 2! Restarting Iteration 2...");
-
-            // Stop timer and ghost replay immediately
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            // Stop the ghost hero replay
-            if (_ghostHero != null)
-            {
-                var ghostReplay = _ghostHero.GetComponent<GhostReplay>();
-                if (ghostReplay != null)
-                {
-                    ghostReplay.Stop();
-                }
-            }
-
-            if (_liveEnemy1 != null)
-            {
-                var enemyHealth = _liveEnemy1.GetComponent<Health>();
-                if (enemyHealth != null)
-                {
-                    enemyHealth.OnDeath -= OnLiveEnemyDied;
-                }
-            }
-
-            Invoke(nameof(RestartIteration2), 0.1f);
-        }
-
-        public void OnGhostReachedFlag()
-        {
-            if (_currentIteration == 2)
-            {
-                Debug.Log("[IterationManager] Ghost hero reached the flag in Iteration 2! Enemy failed to stop it.");
-                Debug.Log("[IterationManager] Restarting Iteration 2...");
-                RestartIteration2();
-            }
-            else if (_currentIteration == 4)
-            {
-                Debug.Log("[IterationManager] Ghost hero #2 reached the flag in Iteration 4! Enemy #2 failed to stop it.");
-                Debug.Log("[IterationManager] Restarting Iteration 4...");
-                RestartIteration4();
-            }
-        }
-
-        void StartIteration3()
-        {
-            Debug.Log("=== ITERATION 3: You control HERO (dodge ghost enemy #1) ===");
-            _currentIteration = 3;
-
-            if (_liveEnemy1 != null)
-            {
-                var enemyPlayerInput = _liveEnemy1.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyPlayerInput != null)
-                {
-                    enemyPlayerInput.DeactivateInput();
-                    enemyPlayerInput.enabled = false;
-                    Debug.Log("[IterationManager] Enemy #1 PlayerInput DISABLED");
-                }
-
-                var enemyPlayerController = _liveEnemy1.GetComponent<PlayerController>();
-                if (enemyPlayerController != null)
-                {
-                    enemyPlayerController.enabled = false;
-                }
-            }
-
-            if (_ghostHero != null)
-            {
-                var ghostHealth = _ghostHero.GetComponent<Health>();
-                if (ghostHealth != null)
-                {
-                    ghostHealth.OnDeath -= OnGhostHeroDied;
-                }
-
-                var ghostCollider = _ghostHero.GetComponent<Collider2D>();
-                if (ghostCollider != null)
-                {
-                    ghostCollider.enabled = false;
-                }
-
-                _ghostHero.tag = "Untagged";
-                _ghostHero.SetActive(false);
-                Destroy(_ghostHero);
-                _ghostHero = null;
-                Debug.Log("[IterationManager] Ghost hero fully cleaned up for Iteration 3");
-            }
-
-            _liveHero.SetActive(true);
-            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-            if (heroSpawnPoint != null)
-            {
-                _liveHero.transform.position = heroSpawnPoint.position;
-            }
-
-            var heroHealth = _liveHero.GetComponent<Health>();
-            if (heroHealth != null)
-            {
-                heroHealth.ResetHealth();
-                heroHealth.OnDeath -= OnHeroDiedInIteration3;
-                heroHealth.OnDeath += OnHeroDiedInIteration3;
-                Debug.Log("[IterationManager] Hero Health reset and OnDeath subscribed for Iteration 3");
-            }
-            else
-            {
-                Debug.LogError("[IterationManager] Hero has NO Health component in Iteration 3!");
-            }
-
-            var heroCollider = _liveHero.GetComponent<Collider2D>();
-            if (heroCollider != null)
-            {
-                heroCollider.enabled = true;
-                heroCollider.isTrigger = false;
-                Debug.Log($"[IterationManager] Hero collider enabled: {heroCollider.GetType().Name}, isTrigger={heroCollider.isTrigger}");
-            }
-            else
-            {
-                Debug.LogError("[IterationManager] Hero has NO Collider2D!");
-            }
-
-            var heroRb = _liveHero.GetComponent<Rigidbody2D>();
-            if (heroRb != null)
-            {
-                heroRb.bodyType = RigidbodyType2D.Dynamic;
-            }
-
-            _liveHero.tag = "Player";
-
-            var heroInput = _liveHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-            if (heroInput != null)
-            {
-                heroInput.enabled = false;
-                heroInput.enabled = true;
-                heroInput.ActivateInput();
-                Debug.Log($"[IterationManager] Hero input re-enabled for Iteration 3");
-            }
-            else
-            {
-                Debug.LogError("[IterationManager] Hero has NO PlayerInput component in Iteration 3!");
-            }
-
-            var heroController = _liveHero.GetComponent<PlayerController>();
-            if (heroController != null)
-            {
-                heroController.enabled = true;
-                Debug.Log("[IterationManager] Hero PlayerController enabled for Iteration 3");
-            }
-
-            // Start recording hero movements for Iteration 4 (5-iteration mode)
-            _heroRecorder = _liveHero.GetComponent<MovementRecorder>();
-            if (_heroRecorder == null)
-            {
-                _heroRecorder = _liveHero.AddComponent<MovementRecorder>();
-            }
-            _heroRecorder.StartRecording();
-            Debug.Log("[IterationManager] Hero MovementRecorder started for Iteration 3");
-
-            var heroShooter = _liveHero.GetComponent<ProjectileShooter>();
-            if (heroShooter != null)
-            {
-                heroShooter.SetTargetTag("Enemy");
-                heroShooter.StartRecording();
-            }
-
-            if (_liveEnemy1 != null && _iteration2EnemyRecording != null)
-            {
-                _ghostEnemy1 = _liveEnemy1;
-                _ghostEnemy1.name = "GhostEnemy1 (Iteration 2 Replay - PERMANENT)";
-                _ghostEnemy1.tag = "Enemy";
-                _ghostEnemy1.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-                var enemyPlayerInput = _ghostEnemy1.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyPlayerInput != null)
-                {
-                    Destroy(enemyPlayerInput);
-                    Debug.Log("[IterationManager] Ghost enemy #1 PlayerInput destroyed");
-                }
-
-                var enemyPlayerController = _ghostEnemy1.GetComponent<PlayerController>();
-                if (enemyPlayerController != null)
-                {
-                    Destroy(enemyPlayerController);
-                }
-
-                var enemyRecorder = _ghostEnemy1.GetComponent<MovementRecorder>();
-                if (enemyRecorder != null)
-                {
-                    enemyRecorder.enabled = false;
-                    Destroy(enemyRecorder);
-                }
-
-                var ghostEnemyRb = _ghostEnemy1.GetComponent<Rigidbody2D>();
-                if (ghostEnemyRb != null)
-                {
-                    ghostEnemyRb.bodyType = RigidbodyType2D.Kinematic;
-                }
-
-                var ghostEnemyHealth = _ghostEnemy1.GetComponent<Health>();
-                if (ghostEnemyHealth != null)
-                {
-                    ghostEnemyHealth.ResetHealth();
-                    ghostEnemyHealth.OnDeath -= OnGhostEnemy1Died;
-                    ghostEnemyHealth.OnDeath += OnGhostEnemy1Died;
-                    Debug.Log("[IterationManager] Ghost enemy #1 Health reset and OnDeath subscribed");
-                }
-
-                var ghostEnemyCollider = _ghostEnemy1.GetComponent<Collider2D>();
-                if (ghostEnemyCollider != null)
-                {
-                    ghostEnemyCollider.enabled = true;
-                }
-
-                var ghostReplay = _ghostEnemy1.AddComponent<GhostReplay>();
-                ghostReplay.StartPlayback(_iteration2EnemyRecording);
-
-                var ghostShooter = _ghostEnemy1.GetComponent<ProjectileShooter>();
-                if (ghostShooter != null && _iteration2EnemyShooterRecording != null)
-                {
-                    ghostShooter.SetTargetTag("Player");
-                    ghostShooter.StartReplay(_iteration2EnemyShooterRecording);
-                    Debug.Log($"[IterationManager] Ghost enemy #1 shooter replaying {_iteration2EnemyShooterRecording.Count} shots");
-                }
-
-                _liveEnemy1 = null;
-                Debug.Log("[IterationManager] Enemy #1 is now a PERMANENT GHOST for all remaining iterations!");
-            }
-
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.SetState(GameState.HeroTurn);
-            }
-
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StartTimer();
-            }
-        }
-
-        void OnHeroDiedInIteration3()
-        {
-            Debug.Log("[IterationManager] Hero died in Iteration 3! Restarting Iteration 3...");
-
-            // Stop timer and ghost replay immediately
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            // Stop the ghost enemy replay immediately
-            if (_ghostEnemy1 != null)
-            {
-                var ghostReplay = _ghostEnemy1.GetComponent<GhostReplay>();
-                if (ghostReplay != null)
-                {
-                    ghostReplay.Stop();
-                }
-            }
-
-            Invoke(nameof(RestartIteration3), 0.1f);
-        }
-
-        void OnGhostEnemy1Died()
-        {
-            Debug.Log("[IterationManager] Ghost enemy #1 killed by hero! Hero defended successfully.");
-            _ghostEnemy1 = null;
-        }
-
-        void StartIteration3FromRestart()
-        {
-            Debug.Log("=== ITERATION 3 (RESTART): You control HERO (dodge ghost enemy) ===");
-            _currentIteration = 3;
-
-            // Reset the fall guard immediately — GameManager.SetState skips the event when
-            // the state is already HeroTurn, so HandleStateChange never fires and the guard
-            // would stay true forever, making a second fall undetectable.
-            var heroControllerForGuard = _liveHero?.GetComponent<PlayerController>();
-            if (heroControllerForGuard != null) heroControllerForGuard.ResetFallGuard();
-
-            // IMPORTANT: Reactivate hero (was deactivated when they died)
-            _liveHero.SetActive(true);
-            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-            // Reset hero position and physics state
-            if (heroSpawnPoint != null)
-            {
-                _liveHero.transform.position = heroSpawnPoint.position;
-            }
-
-            // Reset rigidbody velocity
-            var heroRb = _liveHero.GetComponent<Rigidbody2D>();
-            if (heroRb != null)
-            {
-                heroRb.linearVelocity = Vector2.zero;
-                heroRb.bodyType = RigidbodyType2D.Dynamic;
-            }
-
-            var heroHealth = _liveHero.GetComponent<Health>();
-            if (heroHealth != null)
-            {
-                heroHealth.ResetHealth();
-                heroHealth.OnDeath -= OnHeroDiedInIteration3;
-                heroHealth.OnDeath += OnHeroDiedInIteration3;
-                Debug.Log($"[IterationManager] Hero Health reset - isDead={heroHealth.IsDead}, health={heroHealth.CurrentHealth}");
-            }
-
-            // Ensure hero's collider is enabled and verify its state
-            var heroCollider = _liveHero.GetComponent<Collider2D>();
-            if (heroCollider != null)
-            {
-                heroCollider.enabled = true;
-                heroCollider.isTrigger = false; // Must NOT be trigger to be hit by trigger projectiles
-                Debug.Log($"[IterationManager] Hero collider state - enabled={heroCollider.enabled}, isTrigger={heroCollider.isTrigger}, type={heroCollider.GetType().Name}, layer={LayerMask.LayerToName(_liveHero.layer)}");
-            }
-            else
-            {
-                Debug.LogError("[IterationManager] Hero has NO collider!");
-            }
-
-            _liveHero.tag = "Player";
-
-            // Force physics system to update after position change and collider enable
-            Physics2D.SyncTransforms();
-
-            Debug.Log($"[IterationManager] Hero tag='{_liveHero.tag}', active={_liveHero.activeInHierarchy}, position={_liveHero.transform.position}");
-
-            // Re-enable hero input
-            var heroInput = _liveHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-            if (heroInput != null)
-            {
-                heroInput.enabled = false;
-                heroInput.enabled = true;
-                heroInput.ActivateInput();
-            }
-
-            var heroController = _liveHero.GetComponent<PlayerController>();
-            if (heroController != null)
-            {
-                heroController.enabled = true;
-            }
-
-            // Start recording hero movements for Iteration 4 (5-iteration mode)
-            _heroRecorder = _liveHero.GetComponent<MovementRecorder>();
-            if (_heroRecorder == null)
-            {
-                _heroRecorder = _liveHero.AddComponent<MovementRecorder>();
-            }
-            _heroRecorder.StartRecording();
-            Debug.Log("[IterationManager] Hero MovementRecorder started for Iteration 3 restart");
-
-            // Configure hero shooter
-            var heroShooter = _liveHero.GetComponent<ProjectileShooter>();
-            if (heroShooter != null)
-            {
-                heroShooter.SetTargetTag("Enemy");
-                heroShooter.StartRecording();
-            }
-
-            if (enemyPrefab != null && _iteration2EnemyRecording != null)
-            {
-                _ghostEnemy1 = Instantiate(enemyPrefab, enemy1SpawnPoint.position, Quaternion.identity);
-                _ghostEnemy1.name = "GhostEnemy1 (Iteration 2 Replay)";
-                _ghostEnemy1.tag = "Enemy";
-                _ghostEnemy1.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-                var enemyPlayerInput = _ghostEnemy1.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyPlayerInput != null)
-                {
-                    enemyPlayerInput.enabled = false;
-                    Destroy(enemyPlayerInput);
-                }
-
-                var enemyPlayerController = _ghostEnemy1.GetComponent<PlayerController>();
-                if (enemyPlayerController != null)
-                {
-                    enemyPlayerController.enabled = false;
-                    Destroy(enemyPlayerController);
-                }
-
-                var enemyRecorder = _ghostEnemy1.GetComponent<MovementRecorder>();
-                if (enemyRecorder != null)
-                {
-                    Destroy(enemyRecorder);
-                }
-
-                var ghostEnemyRb = _ghostEnemy1.GetComponent<Rigidbody2D>();
-                if (ghostEnemyRb != null)
-                {
-                    ghostEnemyRb.bodyType = RigidbodyType2D.Kinematic;
-                }
-
-                var ghostEnemyHealth = _ghostEnemy1.GetComponent<Health>();
-                if (ghostEnemyHealth == null)
-                {
-                    ghostEnemyHealth = _ghostEnemy1.AddComponent<Health>();
-                }
-                ghostEnemyHealth.ResetHealth();
-                ghostEnemyHealth.OnDeath += OnGhostEnemy1Died;
-
-                var ghostEnemyCollider = _ghostEnemy1.GetComponent<Collider2D>();
-                if (ghostEnemyCollider != null)
-                {
-                    ghostEnemyCollider.enabled = true;
-                }
-
-                var ghostReplay = _ghostEnemy1.AddComponent<GhostReplay>();
-                ghostReplay.StartPlayback(_iteration2EnemyRecording);
-
-                var ghostShooter = _ghostEnemy1.GetComponent<ProjectileShooter>();
-                if (ghostShooter != null && _iteration2EnemyShooterRecording != null)
-                {
-                    ghostShooter.SetTargetTag("Player");
-                    ghostShooter.StartReplay(_iteration2EnemyShooterRecording);
-                }
-
-                Debug.Log("[IterationManager] Ghost enemy #1 created for Iteration 3 restart");
-            }
-
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.SetState(GameState.HeroTurn);
-            }
-
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StartTimer();
-            }
-        }
-
-        public void OnHeroReachedFlagInIteration3()
-        {
-            if (_currentIteration != 3)
-            {
-                Debug.LogWarning("[IterationManager] OnHeroReachedFlagInIteration3 called but not in Iteration 3!");
-                return;
-            }
-
-            if (_iterationTimer != null)
-                _iterationTimer.StopTimer();
-
-            if (_totalIterations == 3)
-            {
-                Debug.Log("[IterationManager] Hero reached flag in Iteration 3 (3-iteration mode)! Round complete!");
-
-                CleanupGhosts();
-
-                if (_liveHero != null)
-                {
-                    var heroInput = _liveHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                    if (heroInput != null) heroInput.DeactivateInput();
-
-                    var heroRb = _liveHero.GetComponent<Rigidbody2D>();
-                    if (heroRb != null) heroRb.linearVelocity = Vector2.zero;
-                }
-
-                if (RoundManager.Instance != null)
-                {
-                    RoundManager.Instance.OnIterationCycleComplete();
-                }
-                else
-                {
-                    Debug.LogWarning("[IterationManager] No RoundManager found! Falling back to LevelComplete.");
-                    if (GameManager.Instance != null)
-                        GameManager.Instance.SetState(GameState.LevelComplete);
-                }
-            }
-            else
-            {
-                Debug.Log("[IterationManager] Hero reached flag in Iteration 3 (5-iteration mode)! Recording complete. Moving to Iteration 4.");
-                _heroReachedFlagInIteration3 = true;
-
-                var heroRecorder = _liveHero.GetComponent<MovementRecorder>();
-                if (heroRecorder != null)
-                {
-                    heroRecorder.StopRecording();
-                    _iteration3HeroRecording = heroRecorder.GetRecording();
-                    Debug.Log($"[IterationManager] Stored hero recording #2: {_iteration3HeroRecording.Count} frames");
-                }
-
-                var heroShooter = _liveHero.GetComponent<ProjectileShooter>();
-                if (heroShooter != null)
-                {
-                    heroShooter.StopRecording();
-                    _iteration3HeroShooterRecording = heroShooter.GetRecording();
-                    Debug.Log($"[IterationManager] Stored hero shooter recording #2: {_iteration3HeroShooterRecording.Count} shots");
-                }
-
-                SaveIterationSnapshot();
-                StartIteration4();
-            }
-        }
-
-
-        /// <summary>
-        /// Restart Iteration 2 when enemy dies or ghost reaches flag.
-        /// Ghost hero replays from beginning, enemy respawns.
-        /// </summary>
-        void RestartIteration2()
-        {
-            Debug.Log("[IterationManager] === RESTARTING ITERATION 2 ===");
-            GeniesGambit.Level.KeyCollectible.ResetKey();
-
-            // Stop the timer first
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            // Clean up current ghost and enemy
-            if (_ghostHero != null)
-            {
-                var ghostHealth = _ghostHero.GetComponent<Health>();
-                if (ghostHealth != null)
-                {
-                    ghostHealth.OnDeath -= OnGhostHeroDied;
-                }
-                _ghostHero.tag = "Untagged";
-                _ghostHero.SetActive(false);
-                Destroy(_ghostHero);
-                _ghostHero = null;
-            }
-
-            if (_liveEnemy1 != null)
-            {
-                var enemyHealth = _liveEnemy1.GetComponent<Health>();
-                if (enemyHealth != null)
-                {
-                    enemyHealth.OnDeath -= OnLiveEnemyDied;
-                }
-                _liveEnemy1.SetActive(false);
-                Destroy(_liveEnemy1);
-                _liveEnemy1 = null;
-            }
-
-            StartIteration2();
-        }
-
-        void RestartIteration3()
-        {
-            Debug.Log("[IterationManager] === RESTARTING ITERATION 3 ===");
-            GeniesGambit.Level.KeyCollectible.ResetKey();
-
-            // Stop the timer first
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            if (_ghostEnemy1 != null)
-            {
-                var ghostHealth = _ghostEnemy1.GetComponent<Health>();
-                if (ghostHealth != null)
-                {
-                    ghostHealth.OnDeath -= OnGhostEnemy1Died;
-                }
-                _ghostEnemy1.tag = "Untagged";
-                _ghostEnemy1.SetActive(false);
-                Destroy(_ghostEnemy1);
-                _ghostEnemy1 = null;
-            }
-
-            // Hero needs to be re-enabled (it was deactivated when it died)
-            _liveHero.SetActive(true);
-            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-            // Start Iteration 3 fresh with the same Iteration 2 recording
-            StartIteration3FromRestart();
-        }
-
-        public void ResetIterations()
-        {
-            Debug.Log("[IterationManager] Resetting iteration cycle...");
-            CancelInvoke(); // Cancel any pending delayed restarts
-
-            // Stop the timer first
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            CleanupGhosts();
-
-            _liveHero.SetActive(true);
-            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-            if (heroSpawnPoint != null)
-            {
-                _liveHero.transform.position = heroSpawnPoint.position;
-            }
-
-            var heroHealth = _liveHero.GetComponent<Health>();
-            if (heroHealth != null)
-            {
-                heroHealth.ResetHealth();
-            }
-
-            if (_liveEnemy1 != null)
-            {
-                _liveEnemy1.SetActive(false);
-                Destroy(_liveEnemy1);
-                _liveEnemy1 = null;
-            }
-
-            if (_liveEnemy2 != null)
-            {
-                _liveEnemy2.SetActive(false);
-                Destroy(_liveEnemy2);
-                _liveEnemy2 = null;
-            }
-
-            _iteration1HeroRecording = null;
-            _iteration1HeroShooterRecording = null;
-            _iteration2EnemyRecording = null;
-            _iteration2EnemyShooterRecording = null;
-
-            StartIteration1();
-        }
-
-        void CleanupGhosts()
-        {
-            if (_ghostHero != null)
-            {
-                _ghostHero.tag = "Untagged";
-                _ghostHero.SetActive(false);
-                Destroy(_ghostHero);
-                _ghostHero = null;
-            }
-
-            if (_ghostHero2 != null)
-            {
-                _ghostHero2.tag = "Untagged";
-                _ghostHero2.SetActive(false);
-                Destroy(_ghostHero2);
-                _ghostHero2 = null;
-            }
-
-            if (_ghostEnemy1 != null)
-            {
-                _ghostEnemy1.tag = "Untagged";
-                _ghostEnemy1.SetActive(false);
-                Destroy(_ghostEnemy1);
-                _ghostEnemy1 = null;
-            }
-
-            if (_ghostEnemy2 != null)
-            {
-                _ghostEnemy2.tag = "Untagged";
-                _ghostEnemy2.SetActive(false);
-                Destroy(_ghostEnemy2);
-                _ghostEnemy2 = null;
-            }
+            yield return new WaitForSeconds(delay);
+            if (hp != null) hp.SetInvulnerable(false);
         }
 
         void OnDestroy()
         {
-            CleanupGhosts();
-
-            if (_liveEnemy1 != null)
-            {
-                Destroy(_liveEnemy1);
-            }
-
-            if (_liveEnemy2 != null)
-            {
-                Destroy(_liveEnemy2);
-            }
-
-            _iteration1HeroRecording?.Clear();
-            _iteration1HeroShooterRecording?.Clear();
-            _iteration2EnemyRecording?.Clear();
-            _iteration2EnemyShooterRecording?.Clear();
+            CleanupAll();
+            _heroRecording?.Clear();
+            _heroShooterRecording?.Clear();
+            _enemy1Recording?.Clear();
+            _enemy1ShooterRecording?.Clear();
+            _enemy2Recording?.Clear();
+            _enemy2ShooterRecording?.Clear();
         }
 
-        void OnIterationTimerExpired()
+        // ─────────────────────────────────────────────────────────────────────
+        // Restart game (called from UI)
+        // ─────────────────────────────────────────────────────────────────────
+
+        public void RestartGame()
         {
-            Debug.Log($"[IterationTimer] Timer expired in Iteration {_currentIteration}!");
+            Debug.Log("[IterationManager] Restarting entire game...");
+            CleanupAll();
 
-            switch (_currentIteration)
-            {
-                case 1:
-                    Debug.Log("[IterationTimer] Iteration 1 failed - Time's up! Hero didn't reach the flag in time.");
-                    ResetIterations();
-                    break;
-                case 2:
-                    Debug.Log("[IterationTimer] Iteration 2 failed - Time's up! Enemy didn't stop the ghost in time.");
-                    RestartIteration2();
-                    break;
-                case 3:
-                    Debug.Log("[IterationTimer] Iteration 3 failed - Time's up! Hero didn't reach the flag in time.");
-                    RestartIteration3();
-                    break;
-                case 4:
-                    Debug.Log("[IterationTimer] Iteration 4 failed - Time's up! Enemy #2 didn't stop the ghost in time.");
-                    RestartIteration4();
-                    break;
-                case 5:
-                    Debug.Log("[IterationTimer] Iteration 5 failed - Time's up! Hero didn't reach the flag in time.");
-                    RestartIteration5();
-                    break;
-            }
-        }
+            if (GeniesGambit.Genie.GenieManager.Instance != null)
+                GeniesGambit.Genie.GenieManager.Instance.ResetAllWishes();
 
-        void StartIteration4()
-        {
-            Debug.Log("=== ITERATION 4: You control ENEMY #2 (Ghost Enemy #1 still active!) ===");
-            _currentIteration = 4;
-            _enemy2KilledGhostInIteration4 = false;
+            if (GeniesGambit.Level.KeyMechanicManager.Instance != null)
+                GeniesGambit.Level.KeyMechanicManager.Instance.ResetKeyMechanic();
 
-            if (_iteration3HeroRecording == null || _iteration3HeroRecording.Count == 0)
-            {
-                Debug.LogError("[IterationManager] ERROR: Hero recording #2 is null or empty! Cannot replay.");
-                ResetIterations();
-                return;
-            }
-            Debug.Log($"[IterationManager] Hero recording #2 valid: {_iteration3HeroRecording.Count} frames, {_iteration3HeroShooterRecording?.Count ?? 0} shots");
-
-            if (_liveHero != null)
-            {
-                var liveHeroHealth = _liveHero.GetComponent<Health>();
-                if (liveHeroHealth != null)
-                {
-                    liveHeroHealth.OnDeath -= OnHeroDiedInIteration3;
-                }
-                _liveHero.SetActive(false);
-                Debug.Log("[IterationManager] Hero deactivated");
-            }
-
-            _ghostHero2 = Instantiate(heroPrefab, heroSpawnPoint.position, Quaternion.identity);
-            _ghostHero2.name = "GhostHero2 (Iteration 3 Replay)";
-            _ghostHero2.tag = "Player";
-            _ghostHero2.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-            var ghostPlayerController = _ghostHero2.GetComponent<PlayerController>();
-            if (ghostPlayerController != null)
-            {
-                ghostPlayerController.enabled = false;
-                Destroy(ghostPlayerController);
-            }
-
-            var ghostPlayerInput = _ghostHero2.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-            if (ghostPlayerInput != null)
-            {
-                ghostPlayerInput.enabled = false;
-                Destroy(ghostPlayerInput);
-            }
-
-            var ghostRecorder = _ghostHero2.GetComponent<MovementRecorder>();
-            if (ghostRecorder != null)
-            {
-                ghostRecorder.enabled = false;
-                Destroy(ghostRecorder);
-            }
-
-            var ghostRb = _ghostHero2.GetComponent<Rigidbody2D>();
-            if (ghostRb != null)
-            {
-                ghostRb.bodyType = RigidbodyType2D.Kinematic;
-            }
-
-            var ghostHealth = _ghostHero2.GetComponent<Health>();
-            if (ghostHealth != null)
-            {
-                ghostHealth.ResetHealth();
-                ghostHealth.OnDeath += OnGhostHero2Died;
-                Debug.Log("[IterationManager] Ghost hero #2 Health reset and OnDeath subscribed");
-            }
-            else
-            {
-                Debug.LogError("[IterationManager] Ghost hero #2 has NO Health component!");
-            }
-
-            var ghostCollider = _ghostHero2.GetComponent<Collider2D>();
-            if (ghostCollider != null)
-            {
-                ghostCollider.enabled = true;
-                Debug.Log($"[IterationManager] Ghost hero #2 collider enabled: {ghostCollider.GetType().Name}");
-            }
-            else
-            {
-                Debug.LogError("[IterationManager] Ghost hero #2 has NO Collider2D!");
-            }
-
-            var ghostReplay = _ghostHero2.AddComponent<GhostReplay>();
-            ghostReplay.StartPlayback(_iteration3HeroRecording);
-
-            var ghostShooter = _ghostHero2.GetComponent<ProjectileShooter>();
-            if (ghostShooter != null && _iteration3HeroShooterRecording != null)
-            {
-                Debug.Log($"[IterationManager] Ghost hero #2 shooter found. Using stored shot recording: {_iteration3HeroShooterRecording.Count} shots");
-                ghostShooter.SetTargetTag("Enemy");
-                ghostShooter.StartReplay(_iteration3HeroShooterRecording);
-            }
-
-            // Restart (or recreate) ghost enemy #1 so it stays in sync with ghost hero #2
-            if (_ghostEnemy1 != null)
-            {
-                // Stop old replay and restart from the beginning
-                var oldReplay = _ghostEnemy1.GetComponent<GhostReplay>();
-                if (oldReplay != null)
-                {
-                    oldReplay.Stop();
-                    Destroy(oldReplay);
-                }
-
-                _ghostEnemy1.transform.position = enemy1SpawnPoint.position;
-
-                var newReplay = _ghostEnemy1.AddComponent<GhostReplay>();
-                newReplay.StartPlayback(_iteration2EnemyRecording);
-
-                var ghostEnemyShooter = _ghostEnemy1.GetComponent<ProjectileShooter>();
-                if (ghostEnemyShooter != null && _iteration2EnemyShooterRecording != null)
-                {
-                    ghostEnemyShooter.StartReplay(_iteration2EnemyShooterRecording);
-                }
-
-                var ghostEnemyHealth = _ghostEnemy1.GetComponent<Health>();
-                if (ghostEnemyHealth != null)
-                {
-                    ghostEnemyHealth.ResetHealth();
-                    ghostEnemyHealth.OnDeath -= OnGhostEnemy1Died;
-                    ghostEnemyHealth.OnDeath += OnGhostEnemy1Died;
-                }
-
-                Debug.Log("[IterationManager] Ghost enemy #1 replay RESTARTED for Iteration 4!");
-            }
-            else if (enemyPrefab != null && _iteration2EnemyRecording != null && _iteration2EnemyRecording.Count > 0)
-            {
-                // Ghost enemy #1 was destroyed (e.g. by rewind CleanupGhosts) — recreate it fresh
-                _ghostEnemy1 = Instantiate(enemyPrefab, enemy1SpawnPoint.position, Quaternion.identity);
-                _ghostEnemy1.name = "GhostEnemy1 (Iteration 2 Replay)";
-                _ghostEnemy1.tag = "Enemy";
-                _ghostEnemy1.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-                var enemyPlayerInput = _ghostEnemy1.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyPlayerInput != null) { enemyPlayerInput.enabled = false; Destroy(enemyPlayerInput); }
-
-                var enemyPlayerController = _ghostEnemy1.GetComponent<PlayerController>();
-                if (enemyPlayerController != null) { enemyPlayerController.enabled = false; Destroy(enemyPlayerController); }
-
-                var enemyRecorder = _ghostEnemy1.GetComponent<MovementRecorder>();
-                if (enemyRecorder != null) Destroy(enemyRecorder);
-
-                var ghostEnemyRb = _ghostEnemy1.GetComponent<Rigidbody2D>();
-                if (ghostEnemyRb != null) ghostEnemyRb.bodyType = RigidbodyType2D.Kinematic;
-
-                var ghostEnemyHealth = _ghostEnemy1.GetComponent<Health>();
-                if (ghostEnemyHealth == null) ghostEnemyHealth = _ghostEnemy1.AddComponent<Health>();
-                ghostEnemyHealth.ResetHealth();
-                ghostEnemyHealth.OnDeath -= OnGhostEnemy1Died;
-                ghostEnemyHealth.OnDeath += OnGhostEnemy1Died;
-
-                var ghostEnemyCollider = _ghostEnemy1.GetComponent<Collider2D>();
-                if (ghostEnemyCollider != null) ghostEnemyCollider.enabled = true;
-
-                var ghostEnemyReplay = _ghostEnemy1.AddComponent<GhostReplay>();
-                ghostEnemyReplay.StartPlayback(_iteration2EnemyRecording);
-
-                var ghostEnemyShooter = _ghostEnemy1.GetComponent<ProjectileShooter>();
-                if (ghostEnemyShooter != null && _iteration2EnemyShooterRecording != null)
-                {
-                    ghostEnemyShooter.SetTargetTag("Player");
-                    ghostEnemyShooter.StartReplay(_iteration2EnemyShooterRecording);
-                }
-
-                Debug.Log("[IterationManager] Ghost enemy #1 RECREATED for Iteration 4 (was null after rewind)!");
-            }
-
-            if (enemyPrefab != null)
-            {
-                _liveEnemy2 = Instantiate(enemyPrefab, enemy2SpawnPoint.position, Quaternion.identity);
-                _liveEnemy2.name = "LiveEnemy2 (Player Controlled)";
-                _liveEnemy2.tag = "Enemy";
-                _liveEnemy2.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-                Debug.Log($"[IterationManager] Enemy #2 spawned at {enemy2SpawnPoint.position}");
-
-                var enemyHealth = _liveEnemy2.GetComponent<Health>();
-                if (enemyHealth == null)
-                {
-                    enemyHealth = _liveEnemy2.AddComponent<Health>();
-                }
-                enemyHealth.ResetHealth();
-                enemyHealth.OnDeath -= OnLiveEnemy2Died;
-                enemyHealth.OnDeath += OnLiveEnemy2Died;
-
-                var enemyCollider = _liveEnemy2.GetComponent<Collider2D>();
-                if (enemyCollider != null)
-                {
-                    enemyCollider.enabled = true;
-                }
-                else
-                {
-                    var capsuleCollider = _liveEnemy2.AddComponent<CapsuleCollider2D>();
-                    capsuleCollider.size = new Vector2(1f, 2f);
-                }
-
-                var enemyInput = _liveEnemy2.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyInput != null)
-                {
-                    enemyInput.enabled = true;
-                }
-
-                var enemyController = _liveEnemy2.GetComponent<PlayerController>();
-                if (enemyController != null)
-                {
-                    enemyController.enabled = true;
-                }
-
-                var enemyRecorder = _liveEnemy2.GetComponent<MovementRecorder>();
-                if (enemyRecorder == null)
-                {
-                    enemyRecorder = _liveEnemy2.AddComponent<MovementRecorder>();
-                }
-                enemyRecorder.StartRecording();
-
-                var enemyShooter = _liveEnemy2.GetComponent<ProjectileShooter>();
-                if (enemyShooter != null)
-                {
-                    enemyShooter.SetTargetTag("Player");
-                    enemyShooter.StartRecording();
-                }
-            }
-
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.SetState(GameState.MonsterTurn);
-            }
-
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StartTimer();
-            }
-        }
-
-        void OnGhostHero2Died()
-        {
-            if (_currentIteration != 4)
-            {
-                return;
-            }
-
-            Debug.Log("[IterationManager] Ghost hero #2 died in Iteration 4!");
-            _enemy2KilledGhostInIteration4 = true;
-
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            if (_liveEnemy2 != null)
-            {
-                var enemyRecorder = _liveEnemy2.GetComponent<MovementRecorder>();
-                if (enemyRecorder != null)
-                {
-                    enemyRecorder.StopRecording();
-                    _iteration4Enemy2Recording = enemyRecorder.GetRecording();
-                    Debug.Log($"[IterationManager] Stored enemy #2 movement recording: {_iteration4Enemy2Recording.Count} frames");
-                }
-
-                var enemyShooter = _liveEnemy2.GetComponent<ProjectileShooter>();
-                if (enemyShooter != null)
-                {
-                    enemyShooter.StopRecording();
-                    _iteration4Enemy2ShooterRecording = enemyShooter.GetRecording();
-                    Debug.Log($"[IterationManager] Stored enemy #2 shooter recording: {_iteration4Enemy2ShooterRecording.Count} shots");
-                }
-            }
-
-            SaveIterationSnapshot();
-            StartIteration5();
-        }
-
-        void OnLiveEnemy2Died()
-        {
-            if (_currentIteration != 4)
-            {
-                return;
-            }
-
-            Debug.Log("[IterationManager] Live enemy #2 died in Iteration 4! Restarting Iteration 4...");
-
-            // Stop timer and ghost replays immediately
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            // Stop the ghost hero replay
-            if (_ghostHero2 != null)
-            {
-                var ghostReplay = _ghostHero2.GetComponent<GhostReplay>();
-                if (ghostReplay != null)
-                {
-                    ghostReplay.Stop();
-                }
-            }
-
-            // Stop ghost enemy #1 replay too
-            if (_ghostEnemy1 != null)
-            {
-                var ghostReplay = _ghostEnemy1.GetComponent<GhostReplay>();
-                if (ghostReplay != null)
-                {
-                    ghostReplay.Stop();
-                }
-            }
-
-            if (_liveEnemy2 != null)
-            {
-                var enemyHealth = _liveEnemy2.GetComponent<Health>();
-                if (enemyHealth != null)
-                {
-                    enemyHealth.OnDeath -= OnLiveEnemy2Died;
-                }
-            }
-
-            Invoke(nameof(RestartIteration4), 0.1f);
-        }
-
-        void StartIteration5()
-        {
-            Debug.Log("=== ITERATION 5: You control HERO (dodge both ghost enemies) ===");
-            _currentIteration = 5;
-
-            if (_liveEnemy2 != null)
-            {
-                var enemyPlayerInput = _liveEnemy2.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyPlayerInput != null)
-                {
-                    enemyPlayerInput.DeactivateInput();
-                    enemyPlayerInput.enabled = false;
-                    Debug.Log("[IterationManager] Enemy #2 PlayerInput DISABLED");
-                }
-
-                var enemyPlayerController = _liveEnemy2.GetComponent<PlayerController>();
-                if (enemyPlayerController != null)
-                {
-                    enemyPlayerController.enabled = false;
-                }
-            }
-
-            if (_ghostHero2 != null)
-            {
-                var ghostHealth = _ghostHero2.GetComponent<Health>();
-                if (ghostHealth != null)
-                {
-                    ghostHealth.OnDeath -= OnGhostHero2Died;
-                }
-
-                var ghostCollider = _ghostHero2.GetComponent<Collider2D>();
-                if (ghostCollider != null)
-                {
-                    ghostCollider.enabled = false;
-                }
-
-                _ghostHero2.tag = "Untagged";
-                _ghostHero2.SetActive(false);
-                Destroy(_ghostHero2);
-                _ghostHero2 = null;
-                Debug.Log("[IterationManager] Ghost hero #2 cleaned up for Iteration 5");
-            }
-
-            _liveHero.SetActive(true);
-            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-            if (heroSpawnPoint != null)
-            {
-                _liveHero.transform.position = heroSpawnPoint.position;
-            }
-
-            var heroHealth = _liveHero.GetComponent<Health>();
-            if (heroHealth != null)
-            {
-                heroHealth.ResetHealth();
-                heroHealth.OnDeath -= OnHeroDiedInIteration5;
-                heroHealth.OnDeath += OnHeroDiedInIteration5;
-                Debug.Log("[IterationManager] Hero Health reset and OnDeath subscribed for Iteration 5");
-            }
-
-            var heroCollider = _liveHero.GetComponent<Collider2D>();
-            if (heroCollider != null)
-            {
-                heroCollider.enabled = true;
-                heroCollider.isTrigger = false;
-            }
-
-            var heroRb = _liveHero.GetComponent<Rigidbody2D>();
-            if (heroRb != null)
-            {
-                heroRb.bodyType = RigidbodyType2D.Dynamic;
-            }
-
-            _liveHero.tag = "Player";
-
-            var heroInput = _liveHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-            if (heroInput != null)
-            {
-                heroInput.enabled = false;
-                heroInput.enabled = true;
-                heroInput.ActivateInput();
-                Debug.Log($"[IterationManager] Hero input re-enabled for Iteration 5");
-            }
-
-            var heroController = _liveHero.GetComponent<PlayerController>();
-            if (heroController != null)
-            {
-                heroController.enabled = true;
-            }
-
-            var heroShooter = _liveHero.GetComponent<ProjectileShooter>();
-            if (heroShooter != null)
-            {
-                heroShooter.SetTargetTag("Enemy");
-                heroShooter.StartRecording();
-            }
-
-            if (_liveEnemy2 != null && _iteration4Enemy2Recording != null)
-            {
-                _ghostEnemy2 = _liveEnemy2;
-                _ghostEnemy2.name = "GhostEnemy2 (Iteration 4 Replay)";
-                _ghostEnemy2.tag = "Enemy";
-                _ghostEnemy2.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-                var enemyPlayerInput = _ghostEnemy2.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyPlayerInput != null)
-                {
-                    Destroy(enemyPlayerInput);
-                }
-
-                var enemyPlayerController = _ghostEnemy2.GetComponent<PlayerController>();
-                if (enemyPlayerController != null)
-                {
-                    Destroy(enemyPlayerController);
-                }
-
-                var enemyRecorder = _ghostEnemy2.GetComponent<MovementRecorder>();
-                if (enemyRecorder != null)
-                {
-                    enemyRecorder.enabled = false;
-                    Destroy(enemyRecorder);
-                }
-
-                var ghostEnemy2Rb = _ghostEnemy2.GetComponent<Rigidbody2D>();
-                if (ghostEnemy2Rb != null)
-                {
-                    ghostEnemy2Rb.bodyType = RigidbodyType2D.Kinematic;
-                }
-
-                var ghostEnemy2Health = _ghostEnemy2.GetComponent<Health>();
-                if (ghostEnemy2Health != null)
-                {
-                    ghostEnemy2Health.ResetHealth();
-                    ghostEnemy2Health.OnDeath -= OnGhostEnemy2Died;
-                    ghostEnemy2Health.OnDeath += OnGhostEnemy2Died;
-                }
-
-                var ghostEnemy2Collider = _ghostEnemy2.GetComponent<Collider2D>();
-                if (ghostEnemy2Collider != null)
-                {
-                    ghostEnemy2Collider.enabled = true;
-                }
-
-                var ghostReplay = _ghostEnemy2.AddComponent<GhostReplay>();
-                ghostReplay.StartPlayback(_iteration4Enemy2Recording);
-
-                var ghostShooter = _ghostEnemy2.GetComponent<ProjectileShooter>();
-                if (ghostShooter != null && _iteration4Enemy2ShooterRecording != null)
-                {
-                    ghostShooter.SetTargetTag("Player");
-                    ghostShooter.StartReplay(_iteration4Enemy2ShooterRecording);
-                    Debug.Log($"[IterationManager] Ghost enemy #2 shooter replaying {_iteration4Enemy2ShooterRecording.Count} shots");
-                }
-
-                _liveEnemy2 = null;
-                Debug.Log("[IterationManager] Ghost enemy #2 ready for Iteration 5");
-            }
-
-            // Restart ghost enemy #1's replay from the beginning for synchronization
-            if (_ghostEnemy1 != null)
-            {
-                // Stop old replay if it exists
-                var oldReplay = _ghostEnemy1.GetComponent<GhostReplay>();
-                if (oldReplay != null)
-                {
-                    oldReplay.Stop();
-                    Destroy(oldReplay);
-                }
-
-                // Reset position and restart replay
-                _ghostEnemy1.transform.position = enemy1SpawnPoint.position;
-
-                var newReplay = _ghostEnemy1.AddComponent<GhostReplay>();
-                newReplay.StartPlayback(_iteration2EnemyRecording);
-
-                // Restart shooter replay as well
-                var ghostEnemyShooter = _ghostEnemy1.GetComponent<ProjectileShooter>();
-                if (ghostEnemyShooter != null && _iteration2EnemyShooterRecording != null)
-                {
-                    ghostEnemyShooter.StartReplay(_iteration2EnemyShooterRecording);
-                }
-
-                // Reset health
-                var ghostEnemyHealth = _ghostEnemy1.GetComponent<Health>();
-                if (ghostEnemyHealth != null)
-                {
-                    ghostEnemyHealth.ResetHealth();
-                }
-
-                Debug.Log("[IterationManager] Ghost enemy #1 replay RESTARTED for Iteration 5!");
-            }
-
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.SetState(GameState.HeroTurn);
-            }
-
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StartTimer();
-            }
-        }
-
-        void OnHeroDiedInIteration5()
-        {
-            Debug.Log("[IterationManager] Hero died in Iteration 5! Restarting Iteration 5...");
-
-            // Stop timer and ghost replays immediately
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            // Stop both ghost enemy replays immediately
-            if (_ghostEnemy1 != null)
-            {
-                var ghostReplay = _ghostEnemy1.GetComponent<GhostReplay>();
-                if (ghostReplay != null)
-                {
-                    ghostReplay.Stop();
-                }
-            }
-            if (_ghostEnemy2 != null)
-            {
-                var ghostReplay = _ghostEnemy2.GetComponent<GhostReplay>();
-                if (ghostReplay != null)
-                {
-                    ghostReplay.Stop();
-                }
-            }
-
-            Invoke(nameof(RestartIteration5), 0.1f);
-        }
-
-        void OnGhostEnemy2Died()
-        {
-            if (_currentIteration != 5) return;
-
-            Debug.Log("[IterationManager] Ghost enemy #2 killed by hero in Iteration 5!");
-            _ghostEnemy2 = null;
-        }
-
-        public void OnHeroReachedFlagInIteration5()
-        {
-            if (_currentIteration != 5)
-            {
-                Debug.LogWarning("[IterationManager] OnHeroReachedFlagInIteration5 called but not in Iteration 5!");
-                return;
-            }
-
-            Debug.Log("[IterationManager] Hero reached flag in Iteration 5! Round complete!");
-
-            if (_iterationTimer != null)
-                _iterationTimer.StopTimer();
-
-            CleanupGhosts();
-
-            if (_liveHero != null)
-            {
-                var heroInput = _liveHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (heroInput != null) heroInput.DeactivateInput();
-
-                var heroRb = _liveHero.GetComponent<Rigidbody2D>();
-                if (heroRb != null) heroRb.linearVelocity = Vector2.zero;
-            }
-
-            if (RoundManager.Instance != null)
-            {
-                RoundManager.Instance.OnIterationCycleComplete();
-            }
-            else
-            {
-                Debug.LogWarning("[IterationManager] No RoundManager found!");
-                if (GameManager.Instance != null)
-                    GameManager.Instance.SetState(GameState.LevelComplete);
-            }
-        }
-
-        void RestartIteration4()
-        {
-            Debug.Log("[IterationManager] === RESTARTING ITERATION 4 ===");
-            GeniesGambit.Level.KeyCollectible.ResetKey();
-
-            // Stop the timer first
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            if (_ghostHero2 != null)
-            {
-                var ghostHealth = _ghostHero2.GetComponent<Health>();
-                if (ghostHealth != null)
-                {
-                    ghostHealth.OnDeath -= OnGhostHero2Died;
-                }
-                _ghostHero2.tag = "Untagged";
-                _ghostHero2.SetActive(false);
-                Destroy(_ghostHero2);
-                _ghostHero2 = null;
-            }
-
-            if (_liveEnemy2 != null)
-            {
-                var enemyHealth = _liveEnemy2.GetComponent<Health>();
-                if (enemyHealth != null)
-                {
-                    enemyHealth.OnDeath -= OnLiveEnemy2Died;
-                }
-                _liveEnemy2.SetActive(false);
-                Destroy(_liveEnemy2);
-                _liveEnemy2 = null;
-            }
-
-            // Also destroy ghost enemy #1 so it restarts from the beginning
-            if (_ghostEnemy1 != null)
-            {
-                var ghostHealth = _ghostEnemy1.GetComponent<Health>();
-                if (ghostHealth != null)
-                {
-                    ghostHealth.OnDeath -= OnGhostEnemy1Died;
-                }
-                _ghostEnemy1.tag = "Untagged";
-                _ghostEnemy1.SetActive(false);
-                Destroy(_ghostEnemy1);
-                _ghostEnemy1 = null;
-            }
-
-            StartIteration4FromRestart();
-        }
-
-        void StartIteration4FromRestart()
-        {
-            Debug.Log("=== ITERATION 4 (RESTART): You control ENEMY #2 (with Ghost Enemy #1) ===");
-            _currentIteration = 4;
-            _enemy2KilledGhostInIteration4 = false;
-
-            // Create ghost hero #2
-            _ghostHero2 = Instantiate(heroPrefab, heroSpawnPoint.position, Quaternion.identity);
-            _ghostHero2.name = "GhostHero2 (Iteration 3 Replay)";
-            _ghostHero2.tag = "Player";
-            _ghostHero2.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-            var ghostPlayerController = _ghostHero2.GetComponent<PlayerController>();
-            if (ghostPlayerController != null)
-            {
-                ghostPlayerController.enabled = false;
-                Destroy(ghostPlayerController);
-            }
-
-            var ghostPlayerInput = _ghostHero2.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-            if (ghostPlayerInput != null)
-            {
-                ghostPlayerInput.enabled = false;
-                Destroy(ghostPlayerInput);
-            }
-
-            var ghostRecorder = _ghostHero2.GetComponent<MovementRecorder>();
-            if (ghostRecorder != null)
-            {
-                ghostRecorder.enabled = false;
-                Destroy(ghostRecorder);
-            }
-
-            var ghostRb = _ghostHero2.GetComponent<Rigidbody2D>();
-            if (ghostRb != null)
-            {
-                ghostRb.bodyType = RigidbodyType2D.Kinematic;
-            }
-
-            var ghostHealth = _ghostHero2.GetComponent<Health>();
-            if (ghostHealth != null)
-            {
-                ghostHealth.ResetHealth();
-                ghostHealth.OnDeath += OnGhostHero2Died;
-            }
-
-            var ghostCollider = _ghostHero2.GetComponent<Collider2D>();
-            if (ghostCollider != null)
-            {
-                ghostCollider.enabled = true;
-            }
-
-            var ghostReplay = _ghostHero2.AddComponent<GhostReplay>();
-            ghostReplay.StartPlayback(_iteration3HeroRecording);
-
-            var ghostShooter = _ghostHero2.GetComponent<ProjectileShooter>();
-            if (ghostShooter != null && _iteration3HeroShooterRecording != null)
-            {
-                ghostShooter.SetTargetTag("Enemy");
-                ghostShooter.StartReplay(_iteration3HeroShooterRecording);
-            }
-
-            // Recreate ghost enemy #1 fresh
-            if (enemyPrefab != null && _iteration2EnemyRecording != null)
-            {
-                _ghostEnemy1 = Instantiate(enemyPrefab, enemy1SpawnPoint.position, Quaternion.identity);
-                _ghostEnemy1.name = "GhostEnemy1 (Iteration 2 Replay)";
-                _ghostEnemy1.tag = "Enemy";
-                _ghostEnemy1.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-                var enemyPlayerInput = _ghostEnemy1.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyPlayerInput != null)
-                {
-                    enemyPlayerInput.enabled = false;
-                    Destroy(enemyPlayerInput);
-                }
-
-                var enemyPlayerController = _ghostEnemy1.GetComponent<PlayerController>();
-                if (enemyPlayerController != null)
-                {
-                    enemyPlayerController.enabled = false;
-                    Destroy(enemyPlayerController);
-                }
-
-                var enemyRecorder = _ghostEnemy1.GetComponent<MovementRecorder>();
-                if (enemyRecorder != null)
-                {
-                    Destroy(enemyRecorder);
-                }
-
-                var ghostEnemyRb = _ghostEnemy1.GetComponent<Rigidbody2D>();
-                if (ghostEnemyRb != null)
-                {
-                    ghostEnemyRb.bodyType = RigidbodyType2D.Kinematic;
-                }
-
-                var ghostEnemyHealth = _ghostEnemy1.GetComponent<Health>();
-                if (ghostEnemyHealth == null)
-                {
-                    ghostEnemyHealth = _ghostEnemy1.AddComponent<Health>();
-                }
-                ghostEnemyHealth.ResetHealth();
-                ghostEnemyHealth.OnDeath += OnGhostEnemy1Died;
-
-                var ghostEnemyCollider = _ghostEnemy1.GetComponent<Collider2D>();
-                if (ghostEnemyCollider != null)
-                {
-                    ghostEnemyCollider.enabled = true;
-                }
-
-                var ghostEnemyReplay = _ghostEnemy1.AddComponent<GhostReplay>();
-                ghostEnemyReplay.StartPlayback(_iteration2EnemyRecording);
-
-                var ghostEnemyShooter = _ghostEnemy1.GetComponent<ProjectileShooter>();
-                if (ghostEnemyShooter != null && _iteration2EnemyShooterRecording != null)
-                {
-                    ghostEnemyShooter.SetTargetTag("Player");
-                    ghostEnemyShooter.StartReplay(_iteration2EnemyShooterRecording);
-                }
-
-                Debug.Log("[IterationManager] Ghost enemy #1 recreated for Iteration 4 restart");
-            }
-
-            // Create live enemy #2
-            if (enemyPrefab != null)
-            {
-                _liveEnemy2 = Instantiate(enemyPrefab, enemy2SpawnPoint.position, Quaternion.identity);
-                _liveEnemy2.name = "LiveEnemy2 (Player Controlled)";
-                _liveEnemy2.tag = "Enemy";
-                _liveEnemy2.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-                var enemyHealth = _liveEnemy2.GetComponent<Health>();
-                if (enemyHealth == null)
-                {
-                    enemyHealth = _liveEnemy2.AddComponent<Health>();
-                }
-                enemyHealth.ResetHealth();
-                enemyHealth.OnDeath += OnLiveEnemy2Died;
-
-                var enemyCollider = _liveEnemy2.GetComponent<Collider2D>();
-                if (enemyCollider != null)
-                {
-                    enemyCollider.enabled = true;
-                }
-                else
-                {
-                    var capsuleCollider = _liveEnemy2.AddComponent<CapsuleCollider2D>();
-                    capsuleCollider.size = new Vector2(1f, 2f);
-                }
-
-                var enemyInput = _liveEnemy2.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyInput != null)
-                {
-                    enemyInput.enabled = true;
-                }
-
-                var enemyController = _liveEnemy2.GetComponent<PlayerController>();
-                if (enemyController != null)
-                {
-                    enemyController.enabled = true;
-                }
-
-                var enemyRecorder = _liveEnemy2.GetComponent<MovementRecorder>();
-                if (enemyRecorder == null)
-                {
-                    enemyRecorder = _liveEnemy2.AddComponent<MovementRecorder>();
-                }
-                enemyRecorder.StartRecording();
-
-                var enemyShooter = _liveEnemy2.GetComponent<ProjectileShooter>();
-                if (enemyShooter != null)
-                {
-                    enemyShooter.SetTargetTag("Player");
-                    enemyShooter.StartRecording();
-                }
-            }
-
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.SetState(GameState.MonsterTurn);
-            }
-
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StartTimer();
-            }
-        }
-
-        void RestartIteration5()
-        {
-            Debug.Log("[IterationManager] === RESTARTING ITERATION 5 ===");
-            GeniesGambit.Level.KeyCollectible.ResetKey();
-
-            // Stop the timer first
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StopTimer();
-            }
-
-            if (_ghostEnemy2 != null)
-            {
-                var ghostHealth = _ghostEnemy2.GetComponent<Health>();
-                if (ghostHealth != null)
-                {
-                    ghostHealth.OnDeath -= OnGhostEnemy2Died;
-                }
-                _ghostEnemy2.tag = "Untagged";
-                _ghostEnemy2.SetActive(false);
-                Destroy(_ghostEnemy2);
-                _ghostEnemy2 = null;
-            }
-
-            // Also destroy ghost enemy #1 — StartIteration5FromRestart will recreate it fresh
-            if (_ghostEnemy1 != null)
-            {
-                var ghostHealth = _ghostEnemy1.GetComponent<Health>();
-                if (ghostHealth != null)
-                {
-                    ghostHealth.OnDeath -= OnGhostEnemy1Died;
-                }
-                _ghostEnemy1.tag = "Untagged";
-                _ghostEnemy1.SetActive(false);
-                Destroy(_ghostEnemy1);
-                _ghostEnemy1 = null;
-            }
-
-            _liveHero.SetActive(true);
-            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-            StartIteration5FromRestart();
-        }
-
-        void StartIteration5FromRestart()
-        {
-            Debug.Log("=== ITERATION 5 (RESTART): You control HERO (dodge both ghost enemies) ===");
-            _currentIteration = 5;
-
-            // Reset the fall guard — same reason as StartIteration3FromRestart
-            var heroControllerForGuard = _liveHero?.GetComponent<PlayerController>();
-            if (heroControllerForGuard != null) heroControllerForGuard.ResetFallGuard();
-
-            _liveHero.SetActive(true);
-            _liveHero.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-            if (heroSpawnPoint != null)
-            {
-                _liveHero.transform.position = heroSpawnPoint.position;
-            }
-
-            var heroRb = _liveHero.GetComponent<Rigidbody2D>();
-            if (heroRb != null)
-            {
-                heroRb.linearVelocity = Vector2.zero;
-                heroRb.bodyType = RigidbodyType2D.Dynamic;
-            }
-
-            var heroHealth = _liveHero.GetComponent<Health>();
-            if (heroHealth != null)
-            {
-                heroHealth.ResetHealth();
-                heroHealth.OnDeath -= OnHeroDiedInIteration5;
-                heroHealth.OnDeath += OnHeroDiedInIteration5;
-            }
-
-            var heroCollider = _liveHero.GetComponent<Collider2D>();
-            if (heroCollider != null)
-            {
-                heroCollider.enabled = true;
-                heroCollider.isTrigger = false;
-            }
-
-            _liveHero.tag = "Player";
-            Physics2D.SyncTransforms();
-
-            var heroInput = _liveHero.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-            if (heroInput != null)
-            {
-                heroInput.enabled = false;
-                heroInput.enabled = true;
-                heroInput.ActivateInput();
-            }
-
-            var heroController = _liveHero.GetComponent<PlayerController>();
-            if (heroController != null)
-            {
-                heroController.enabled = true;
-            }
-
-            var heroShooter = _liveHero.GetComponent<ProjectileShooter>();
-            if (heroShooter != null)
-            {
-                heroShooter.SetTargetTag("Enemy");
-            }
-
-            if (enemyPrefab != null && _iteration4Enemy2Recording != null)
-            {
-                _ghostEnemy2 = Instantiate(enemyPrefab, enemy2SpawnPoint.position, Quaternion.identity);
-                _ghostEnemy2.name = "GhostEnemy2 (Iteration 4 Replay)";
-                _ghostEnemy2.tag = "Enemy";
-                _ghostEnemy2.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-                var enemyPlayerInput = _ghostEnemy2.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyPlayerInput != null)
-                {
-                    enemyPlayerInput.enabled = false;
-                    Destroy(enemyPlayerInput);
-                }
-
-                var enemyPlayerController = _ghostEnemy2.GetComponent<PlayerController>();
-                if (enemyPlayerController != null)
-                {
-                    enemyPlayerController.enabled = false;
-                    Destroy(enemyPlayerController);
-                }
-
-                var enemyRecorder = _ghostEnemy2.GetComponent<MovementRecorder>();
-                if (enemyRecorder != null)
-                {
-                    Destroy(enemyRecorder);
-                }
-
-                var ghostEnemy2Rb = _ghostEnemy2.GetComponent<Rigidbody2D>();
-                if (ghostEnemy2Rb != null)
-                {
-                    ghostEnemy2Rb.bodyType = RigidbodyType2D.Kinematic;
-                }
-
-                var ghostEnemy2Health = _ghostEnemy2.GetComponent<Health>();
-                if (ghostEnemy2Health == null)
-                {
-                    ghostEnemy2Health = _ghostEnemy2.AddComponent<Health>();
-                }
-                ghostEnemy2Health.ResetHealth();
-                ghostEnemy2Health.OnDeath += OnGhostEnemy2Died;
-
-                var ghostEnemy2Collider = _ghostEnemy2.GetComponent<Collider2D>();
-                if (ghostEnemy2Collider != null)
-                {
-                    ghostEnemy2Collider.enabled = true;
-                }
-
-                var ghostReplay = _ghostEnemy2.AddComponent<GhostReplay>();
-                ghostReplay.StartPlayback(_iteration4Enemy2Recording);
-
-                var ghostShooter = _ghostEnemy2.GetComponent<ProjectileShooter>();
-                if (ghostShooter != null && _iteration4Enemy2ShooterRecording != null)
-                {
-                    ghostShooter.SetTargetTag("Player");
-                    ghostShooter.StartReplay(_iteration4Enemy2ShooterRecording);
-                }
-
-                Debug.Log("[IterationManager] Ghost enemy #2 created for Iteration 5 restart");
-            }
-
-            if (enemyPrefab != null && _iteration2EnemyRecording != null)
-            {
-                _ghostEnemy1 = Instantiate(enemyPrefab, enemy1SpawnPoint.position, Quaternion.identity);
-                _ghostEnemy1.name = "GhostEnemy1 (Iteration 2 Replay)";
-                _ghostEnemy1.tag = "Enemy";
-                _ghostEnemy1.transform.localScale = new Vector3(0.15f, 0.15f, 1f);
-
-                var enemyPlayerInput = _ghostEnemy1.GetComponent<UnityEngine.InputSystem.PlayerInput>();
-                if (enemyPlayerInput != null)
-                {
-                    enemyPlayerInput.enabled = false;
-                    Destroy(enemyPlayerInput);
-                }
-
-                var enemyPlayerController = _ghostEnemy1.GetComponent<PlayerController>();
-                if (enemyPlayerController != null)
-                {
-                    enemyPlayerController.enabled = false;
-                    Destroy(enemyPlayerController);
-                }
-
-                var enemyRecorder = _ghostEnemy1.GetComponent<MovementRecorder>();
-                if (enemyRecorder != null)
-                {
-                    Destroy(enemyRecorder);
-                }
-
-                var ghostEnemyRb = _ghostEnemy1.GetComponent<Rigidbody2D>();
-                if (ghostEnemyRb != null)
-                {
-                    ghostEnemyRb.bodyType = RigidbodyType2D.Kinematic;
-                }
-
-                var ghostEnemyHealth = _ghostEnemy1.GetComponent<Health>();
-                if (ghostEnemyHealth == null)
-                {
-                    ghostEnemyHealth = _ghostEnemy1.AddComponent<Health>();
-                }
-                ghostEnemyHealth.ResetHealth();
-                ghostEnemyHealth.OnDeath += OnGhostEnemy1Died;
-
-                var ghostEnemyCollider = _ghostEnemy1.GetComponent<Collider2D>();
-                if (ghostEnemyCollider != null)
-                {
-                    ghostEnemyCollider.enabled = true;
-                }
-
-                var ghostReplay = _ghostEnemy1.AddComponent<GhostReplay>();
-                ghostReplay.StartPlayback(_iteration2EnemyRecording);
-
-                var ghostShooter = _ghostEnemy1.GetComponent<ProjectileShooter>();
-                if (ghostShooter != null && _iteration2EnemyShooterRecording != null)
-                {
-                    ghostShooter.SetTargetTag("Player");
-                    ghostShooter.StartReplay(_iteration2EnemyShooterRecording);
-                }
-
-                Debug.Log("[IterationManager] Ghost enemy #1 created for Iteration 5 restart");
-            }
-
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.SetState(GameState.HeroTurn);
-            }
-
-            if (_iterationTimer != null)
-            {
-                _iterationTimer.StartTimer();
-            }
+            BeginGame();
         }
     }
 }

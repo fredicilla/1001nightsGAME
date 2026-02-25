@@ -70,22 +70,8 @@ namespace GeniesGambit.Level
 
             if (iterationMgr != null)
             {
-                if (currentIteration == 1)
-                {
-                    iterationMgr.OnHeroReachedFlag();
-                }
-                else if (currentIteration == 3)
-                {
-                    iterationMgr.OnHeroReachedFlagInIteration3();
-                }
-                else if (currentIteration == 5)
-                {
-                    iterationMgr.OnHeroReachedFlagInIteration5();
-                }
-                else
-                {
-                    Debug.LogWarning($"[Flag] Hero reached flag in unexpected iteration: {currentIteration}");
-                }
+                // Unified callback — IterationManager knows which iteration is active
+                iterationMgr.OnHeroReachedGate();
             }
             else
             {
