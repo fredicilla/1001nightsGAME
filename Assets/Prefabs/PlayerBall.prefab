@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 5158782603076473725}
   - component: {fileID: 5821403530920578487}
   - component: {fileID: 1100573397148581932}
+  - component: {fileID: 2335202164308783506}
   m_Layer: 0
   m_Name: PlayerBall
   m_TagString: Projectile
@@ -155,3 +156,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileController
   lifetime: 5
   owner: {fileID: 0}
+--- !u!114 &2335202164308783506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3394622434975131407}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 488f37198d22921498534ea566700409, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SimpleColorForcer
+  ballColor: {r: 1, g: 0, b: 0, a: 1}

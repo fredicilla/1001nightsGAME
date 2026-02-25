@@ -20,6 +20,10 @@ namespace BossFight
         public Transform shootPoint;
         public float shootForce = 50f;
         public float shootCooldown = 0.5f;
+        
+        [Header("Projectile Color")]
+        public Color projectileColor = new Color(2f, 0f, 0f, 1f);
+        public float emissionIntensity = 10f;
 
         [Header("Speed Modifiers")]
         public float currentSpeedModifier = 1f;
@@ -217,7 +221,8 @@ namespace BossFight
             var renderer = apple.GetComponent<Renderer>();
             if (renderer != null)
             {
-                renderer.material.color = Color.red;
+                renderer.material.color = projectileColor;
+                Debug.Log($"🎨 Applied simple color: {projectileColor}");
             }
 
             Debug.Log($"✅ Red sphere apple created at {shootPoint.position}");

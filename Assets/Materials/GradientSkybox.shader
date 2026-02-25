@@ -2,10 +2,11 @@ Shader "Custom/GradientSkybox"
 {
     Properties
     {
-        _TopColor ("Top Color", Color) = (0.5, 0.3, 0.9, 1)
-        _HorizonColor ("Horizon Color", Color) = (0.8, 0.4, 0.7, 1)
-        _BottomColor ("Bottom Color", Color) = (0.95, 0.87, 0.75, 1)
+        _TopColor ("Top Color", Color) = (1.5, 0.5, 2.0, 1)
+        _HorizonColor ("Horizon Color", Color) = (1.0, 0.3, 1.5, 1)
+        _BottomColor ("Bottom Color", Color) = (0.6, 0.2, 0.9, 1)
         _Exponent ("Gradient Exponent", Float) = 2.0
+        _Exposure ("Exposure", Range(0, 8)) = 2.0
     }
     
     SubShader
@@ -24,48 +25,49 @@ Shader "Custom/GradientSkybox"
             struct appdata
             {
                 float4 vertex : POSITION;
-                float3 uv : TEXCOORD0;
+                float3 texcoord : TEXCOORD0;
             };
             
             struct v2f
             {
                 float4 pos : SV_POSITION;
-                float3 uv : TEXCOORD0;
+                float3 texcoord : TEXCOORD0;
             };
             
-            float4 _TopColor;
-            float4 _HorizonColor;
-            float4 _BottomColor;
-            float _Exponent;
+            half4 _TopColor;
+            half4 _HorizonColor;
+            half4 _BottomColor;
+            half _Exponent;
+            half _Exposure;
             
             v2f vert (appdata v)
             {
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
-                o.uv = v.uv;
+                o.texcoord = v.texcoord;
                 return o;
             }
             
             fixed4 frag (v2f i) : SV_Target
             {
-                float3 dir = normalize(i.uv);
+                float3 dir = normalize(i.texcoord);
                 float h = dir.y;
                 
-                fixed4 color;
+                half3 color;
                 if (h > 0.0)
                 {
-                    // Top to Horizon
                     float t = pow(h, _Exponent);
-                    color = lerp(_HorizonColor, _TopColor, t);
+                    color = lerp(_HorizonColor.rgb, _TopColor.rgb, t);
                 }
                 else
                 {
-                    // Horizon to Bottom
                     float t = pow(-h, _Exponent);
-                    color = lerp(_HorizonColor, _BottomColor, t);
+                    color = lerp(_HorizonColor.rgb, _BottomColor.rgb, t);
                 }
                 
-                return color;
+                color *= _Exposure;
+                
+                return half4(color, 1.0);
             }
             ENDCG
         }

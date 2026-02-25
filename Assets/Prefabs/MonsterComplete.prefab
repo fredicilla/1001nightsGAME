@@ -248,7 +248,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterAI
   player: {fileID: 0}
-  moveSpeed: 2
+  moveSpeed: 4
   detectionRange: 20
   attackRange: 1.5
   damage: 1

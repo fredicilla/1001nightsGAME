@@ -134,6 +134,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -5754084199372789682, guid: 3600d9e505b4fc94b8f5f5a5ca886e8c, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
     - target: {fileID: 919132149155446097, guid: 3600d9e505b4fc94b8f5f5a5ca886e8c, type: 3}
       propertyPath: m_Name
       value: Apple
@@ -158,6 +162,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3600d9e505b4fc94b8f5f5a5ca886e8c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 407519621437748254}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3600d9e505b4fc94b8f5f5a5ca886e8c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7539919535332614218}
   m_SourcePrefab: {fileID: 100100000, guid: 3600d9e505b4fc94b8f5f5a5ca886e8c, type: 3}
 --- !u!4 &6071974495829207986 stripped
 Transform:
@@ -231,3 +238,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileController
   lifetime: 5
   owner: {fileID: 0}
+--- !u!114 &7539919535332614218
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6847771674332492040}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 488f37198d22921498534ea566700409, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SimpleColorForcer
+  ballColor: {r: 1, g: 0, b: 0, a: 1}

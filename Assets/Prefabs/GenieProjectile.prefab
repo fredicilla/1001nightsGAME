@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 4358917391172495612}
   - component: {fileID: 7775598523369236305}
   - component: {fileID: 5949686292614191845}
+  - component: {fileID: 3026533187908917819}
   m_Layer: 0
   m_Name: GenieProjectile
   m_TagString: Projectile
@@ -153,3 +154,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b4809cfae09ff848ae4228ebc628c0f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GenieProjectile
+--- !u!114 &3026533187908917819
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8296423749953880848}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 488f37198d22921498534ea566700409, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SimpleColorForcer
+  ballColor: {r: 0.5, g: 0, b: 1, a: 1}
