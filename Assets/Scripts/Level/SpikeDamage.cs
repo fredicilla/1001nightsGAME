@@ -9,12 +9,14 @@ namespace GeniesGambit.Level
     {
         void OnTriggerEnter2D(Collider2D other)
         {
-            if (!other.CompareTag("Player")) return;
+            // Accept both Player and Enemy tags (player-controlled enemies can also hit spikes)
+            if (!other.CompareTag("Player") && !other.CompareTag("Enemy")) return;
 
             // Ghosts (replaying recordings) should not die from spikes
             if (other.GetComponent<Player.GhostReplay>() != null) return;
 
             // Freeze the character at the spike — prevents it from flying out of the map
+            // NOTE: IterationManager will reset bodyType back to Dynamic on respawn
             var rb = other.GetComponent<Rigidbody2D>();
             if (rb != null)
             {

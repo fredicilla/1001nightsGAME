@@ -8,21 +8,17 @@ namespace GeniesGambit.UI
     public class WishCardUI : MonoBehaviour
     {
         [Header("Refs")]
-        [SerializeField] Image    iconImage;
-        [SerializeField] TMP_Text nameText;
-        [SerializeField] TMP_Text quoteText;
-        [SerializeField] Button   cardButton;
-        [SerializeField] Image    selectedOverlay;
+        [SerializeField] Image iconImage;
+        [SerializeField] Button cardButton;
+        [SerializeField] Image selectedOverlay;
 
         WishData _data;
-        bool     _selected;
+        bool _selected;
 
         public void Populate(WishData wish)
         {
-            _data                   = wish;
-            iconImage.sprite        = wish.wishIcon;
-            nameText.text           = wish.wishNameArabic;
-            quoteText.text          = wish.genieQuote;
+            _data = wish;
+            iconImage.sprite = wish.wishIcon;
             selectedOverlay.gameObject.SetActive(false);
             cardButton.onClick.AddListener(OnClicked);
         }

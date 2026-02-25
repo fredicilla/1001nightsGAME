@@ -6,8 +6,8 @@ namespace GeniesGambit.Input
 {
     public class RewindInputHandler : MonoBehaviour
     {
-        float _lastShiftPressTime = -1f;
-        const float DOUBLE_CLICK_TIME = 0.5f;
+        float _lastRewindTime = -10f;
+        const float REWIND_COOLDOWN = 0.2f;
 
         void Update()
         {
@@ -21,24 +21,25 @@ namespace GeniesGambit.Input
 
         void HandleRewindInput()
         {
+            if (Time.time - _lastRewindTime < REWIND_COOLDOWN)
+                return;
+
             int currentIteration = IterationManager.Instance.CurrentIteration;
             if (currentIteration < 1) return;
 
-            float timeSinceLastPress = Time.time - _lastShiftPressTime;
-
-            if (timeSinceLastPress < DOUBLE_CLICK_TIME && currentIteration > 1)
+            if (currentIteration <= 1)
             {
-                int previousIteration = currentIteration - 1;
-                IterationManager.Instance.RewindToIteration(previousIteration);
-                Debug.Log($"[RewindInputHandler] Double Shift - Rewinding to Iteration {previousIteration}");
-                _lastShiftPressTime = -1f;
+                IterationManager.Instance.ResetIterations();
+                Debug.Log("[RewindInputHandler] Shift - Resetting entire cycle from Iteration 1");
             }
             else
             {
-                IterationManager.Instance.RestartCurrentIteration();
-                Debug.Log($"[RewindInputHandler] Single Shift - Restarting Iteration {currentIteration}");
-                _lastShiftPressTime = Time.time;
+                int previousIteration = currentIteration - 1;
+                IterationManager.Instance.RewindToIteration(previousIteration);
+                Debug.Log($"[RewindInputHandler] Shift - Rewinding to Iteration {previousIteration}");
             }
+
+            _lastRewindTime = Time.time;
         }
     }
 }

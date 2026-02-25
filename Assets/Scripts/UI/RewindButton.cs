@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.InputSystem;
 using TMPro;
 using GeniesGambit.Core;
 
@@ -28,12 +27,6 @@ namespace GeniesGambit.UI
                     rewindButton.gameObject.SetActive(false);
                 }
                 return;
-            }
-
-            // Keyboard shortcut: Left Shift triggers rewind (same logic as button click)
-            if (Keyboard.current != null && Keyboard.current.leftShiftKey.wasPressedThisFrame)
-            {
-                OnRewindClicked();
             }
 
             int currentIteration = IterationManager.Instance.CurrentIteration;
