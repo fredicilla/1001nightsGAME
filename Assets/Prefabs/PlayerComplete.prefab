@@ -146,7 +146,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 60a03567b4ab9b748aa21346d4e6d1df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HealthSystem
-  maxHealth: 3
+  maxHealth: 7
   onHealthChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -178,10 +178,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a7b70e70fa96b04ba3afabe15f88572, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  moveSpeed: 5
+  moveSpeed: 7
   jumpForce: 10
   fallMultiplier: 2.5
-  lowJumpMultiplier: 2
+  lowJumpMultiplier: 3
   groundCheckDistance: 0.2
   groundLayer:
     serializedVersion: 2
@@ -191,6 +191,8 @@ MonoBehaviour:
   shootPoint: {fileID: 372851926030101737}
   shootForce: 15
   shootCooldown: 0.5
+  projectileColor: {r: 2, g: 0, b: 0, a: 1}
+  emissionIntensity: 10
   currentSpeedModifier: 1
 --- !u!114 &1182391685769171616
 MonoBehaviour:

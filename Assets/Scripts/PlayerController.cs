@@ -32,6 +32,7 @@ namespace BossFight
         private PlayerAnimationController animationController;
         private Transform characterModel;
 
+        private PlayerAudioManager audioManager;
         private Rigidbody rb;
         private Vector2 moveInput;
         private bool jumpInput;
@@ -59,11 +60,13 @@ namespace BossFight
 
             animationController = GetComponent<PlayerAnimationController>();
             characterModel = transform.Find("CharacterModel");
+            audioManager = GetComponent<PlayerAudioManager>();
 
             isActive = true;
 
             Debug.Log($"✅ PlayerController Awake: AnimationController = {(animationController != null ? "Found" : "NULL")}");
             Debug.Log($"✅ CharacterModel = {(characterModel != null ? "Found" : "NULL")}");
+            Debug.Log($"✅ AudioManager = {(audioManager != null ? "Found" : "NULL")}");
 
             if (shootPoint == null)
             {
@@ -167,6 +170,11 @@ namespace BossFight
                     animationController.TriggerJump();
                 }
 
+                if (audioManager != null)
+                {
+                    audioManager.PlayJumpSound();
+                }
+
                 jumpInput = false;
             }
         }
@@ -177,20 +185,22 @@ namespace BossFight
             {
                 Debug.Log("🔫 HandleShooting: Shooting INSTANTLY!");
 
-                // Set flag for recording BEFORE shooting
                 shootInputThisFrame = true;
 
-                // Shoot immediately - don't wait for animation!
                 Shoot();
 
-                // Trigger animation for visual effect only (but don't wait for it)
                 if (animationController != null)
                 {
                     animationController.TriggerThrow();
                 }
 
+                if (audioManager != null)
+                {
+                    audioManager.PlayThrowSound();
+                }
+
                 lastShootTime = Time.time;
-                shootInput = false;  // Clear the input
+                shootInput = false;
             }
         }
 
