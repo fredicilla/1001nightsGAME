@@ -145,6 +145,9 @@ namespace GeniesGambit.Core
             Debug.Log("[IterationManager] ═══ BEGINNING 7-ITERATION GAME ═══");
             CancelInvoke();
 
+            if (GameManager.Instance != null)
+                GameManager.Instance.SetCurrentIteration(0);
+
             _heroRecording = null;
             _heroShooterRecording = null;
             _enemy1Recording = null;
@@ -158,6 +161,7 @@ namespace GeniesGambit.Core
             _heroShooterRecordingsByIteration.Clear();
 
             _iterIndex = -1;
+            NotifyProgressionUIChanged();
             StartNextIteration();
         }
 
@@ -165,6 +169,7 @@ namespace GeniesGambit.Core
         public void OnWishApplied()
         {
             Debug.Log("[IterationManager] Wish applied — advancing to next iteration.");
+            NotifyProgressionUIChanged();
             StartNextIteration();
         }
 
@@ -182,6 +187,9 @@ namespace GeniesGambit.Core
             }
 
             _def = _sequence[_iterIndex];
+
+            if (GameManager.Instance != null)
+                GameManager.Instance.SetCurrentIteration(_def.number);
 
             // Select the latest hero recording that happened BEFORE this iteration.
             // This is crucial when rewinding from iter4->3->2: iter2 must use iter1 hero record.
@@ -227,6 +235,8 @@ namespace GeniesGambit.Core
             // Timer
             if (_iterationTimer != null)
                 _iterationTimer.StartTimer();
+
+            NotifyProgressionUIChanged();
         }
 
         // ── Restart (death / timer expired / ghost reached flag) ────────────
@@ -311,6 +321,7 @@ namespace GeniesGambit.Core
             // Jump to the iteration just before the target so StartNextIteration advances to it
             _iterIndex = targetIteration - 2;  // -1 because StartNextIteration does _iterIndex++
             StartNextIteration();
+            NotifyProgressionUIChanged();
         }
 
         /// <summary>Full reset — clear all recordings and restart from Iteration 1.</summary>
@@ -826,6 +837,7 @@ namespace GeniesGambit.Core
                         GameManager.Instance.SetState(GameState.GenieWishScreen);
                     // GenieManager listens for this state and will call OnWishApplied()
                     // when the player picks a wish, which resumes the loop.
+                    NotifyProgressionUIChanged();
                     break;
 
                 case PostGoalAction.TriggerBossScene:
@@ -843,9 +855,18 @@ namespace GeniesGambit.Core
                     if (GameManager.Instance != null)
                         GameManager.Instance.SetState(GameState.BossScene);
 
+                    NotifyProgressionUIChanged();
+
                     Invoke(nameof(LoadBossScene), bossSceneDelay);
                     break;
             }
+        }
+
+        void NotifyProgressionUIChanged()
+        {
+            var iterationUI = FindFirstObjectByType<GeniesGambit.UI.IterationUI>();
+            if (iterationUI != null)
+                iterationUI.UpdateProgressionUI();
         }
 
         void LoadBossScene()

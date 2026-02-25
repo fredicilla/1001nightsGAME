@@ -13,6 +13,9 @@ namespace GeniesGambit.Core
         [field: SerializeField]
         public GameState CurrentState { get; private set; } = GameState.HeroTurn;
 
+        [field: SerializeField]
+        public int CurrentIteration { get; private set; } = 0;
+
         // ── Events (subscribe to these from other systems) ─────────────────
         public static event UnityAction<GameState, GameState> OnStateChanged;
 
@@ -32,6 +35,11 @@ namespace GeniesGambit.Core
             OnStateChanged?.Invoke(old, newState);
 
             Debug.Log($"[GameManager] {old} → {newState}");
+        }
+
+        public void SetCurrentIteration(int iteration)
+        {
+            CurrentIteration = iteration;
         }
     }
 }
