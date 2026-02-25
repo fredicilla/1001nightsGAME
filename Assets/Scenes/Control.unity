@@ -177,7 +177,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 8475304359162461801, guid: 90219ef0d09703643a0e78c45d766387, type: 3}
+  m_Sprite: {fileID: 1560204905934585530, guid: 810e039bbf1b0b34297494d7576bfcc8, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -340,6 +340,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ecc98ecca04fdc14c85fe24019637f1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SceneManagment
+  videoPath: intro.mp4
+  gameSceneName: SampleScene
 --- !u!1 &1108939921
 GameObject:
   m_ObjectHideFlags: 0
@@ -563,6 +565,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ecc98ecca04fdc14c85fe24019637f1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuController
+  videoPath: intro.mp4
+  gameSceneName: SampleScene
 --- !u!4 &1454527864
 Transform:
   m_ObjectHideFlags: 0
